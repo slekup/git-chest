@@ -1,7 +1,7 @@
 [package]
 name = "git-chest"
 version = "0.0.1"
-description = "Git metadata browsing client."
+description = "Store and sync repository metadata (data optional) for offline browsing, analysis, and updates."
 authors = ["Slekup <opensource@slekup.com>"]
 license = "MIT or Apache-2.0"
 repository = "https://github.com/slekup/git-chest"

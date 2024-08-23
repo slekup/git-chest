@@ -24,7 +24,7 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": ""
     },
-    "longDescription": "",
+    "longDescription": "Store and sync repository metadata (data optional) for offline browsing, analysis, and updates.",
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
@@ -33,7 +33,7 @@
       "signingIdentity": null
     },
     "resources": [],
-    "shortDescription": "",
+    "shortDescription": "Store and sync repository metadata (data optional) for offline browsing, analysis, and updates.",
     "linux": {
       "deb": {
         "depends": []
