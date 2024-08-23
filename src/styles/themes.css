@@ -1,0 +1,113 @@
+:root {
+  /* --primary: 168, 85, 247; */
+  /* --primary-hover: 147, 51, 234; */
+  /* --primary-active: 122, 26, 209; */
+  /* --primary-fg: 255, 255, 255; */
+  --menu: var(--primary);
+  --menu-fg: var(--primary-fg);
+  --menu-hover: var(--secondary);
+  --menu-active: var(--secondary-active);
+
+  --warning: 253, 182, 34;
+  --warning-hover: 254, 207, 112;
+  --warning-active: 251, 170, 2;
+  --warning-fg: 0, 0, 0;
+  --success: 132, 204, 22;
+  --success-hover: 101, 163, 13;
+  --success-active: 77, 124, 15;
+  --success-fg: 255, 255, 255;
+  --danger: 255, 51, 51;
+  --danger-hover: 219, 15, 15;
+  --danger-active: 193, 13, 13;
+  --danger-fg: 255, 255, 255;
+}
+
+[data-theme="light"] {
+  --primary: 0, 0, 0;
+  --primary-hover: 30, 30, 30;
+  --primary-active: 80, 80, 80;
+  --primary-fg: 255, 255, 255;
+  --secondary: 229, 231, 235;
+  --secondary-hover: 207, 209, 213;
+  --secondary-active: 180, 182, 186;
+  --secondary-fg: 0, 0, 0;
+
+  --fg: 0, 0, 0;
+  --fg-secondary: 94, 96, 98;
+  --fg-tertiary: 150, 152, 154;
+  --bg: 255, 255, 255;
+  --bg-modal: 255, 255, 255;
+  --bg-secondary: 231, 233, 235;
+  --bg-tertiary: 213, 215, 217;
+
+  --tooltip: 0, 0, 0;
+  --tooltip-fg: 255, 255, 255;
+  --link: 18, 109, 248;
+  --input: var(--bg);
+  --input-focus: var(--bg);
+
+  --border: 229, 231, 235;
+  --border-hover: 209, 213, 219;
+  --border-active: 0, 0, 0;
+  --border-focus: 0, 0, 0;
+}
+
+[data-theme="dark"] {
+  --primary: 255, 255, 255;
+  --primary-hover: 200, 200, 200;
+  --primary-active: 150, 150, 150;
+  --primary-fg: 0, 0, 0;
+  --secondary: 80, 80, 80;
+  --secondary-hover: 100, 100, 100;
+  --secondary-active: 120, 120, 120;
+  --secondary-fg: 255, 255, 255;
+
+  --fg: 255, 255, 255;
+  --fg-secondary: 200, 200, 200;
+  --fg-tertiary: 150, 150, 150;
+  --bg: 0, 0, 0;
+  --bg-modal: 20, 20, 20;
+  --bg-secondary: 50, 50, 50;
+  --bg-tertiary: 213, 215, 217;
+
+  --tooltip: 255, 255, 255;
+  --tooltip-fg: 0, 0, 0;
+  --link: 58, 149, 255;
+  --input: var(--bg);
+  --input-focus: var(--bg-modal);
+
+  --border: 50, 50, 50;
+  --border-hover: 100, 100, 100;
+  --border-active: 255, 255, 255;
+  --border-focus: 255, 255, 255;
+}
+
+[data-theme="raspberry"] {
+  --primary: 253, 10, 84;
+  --primary-hover: 202, 8, 67;
+  --primary-active: 152, 6, 50;
+  --primary-fg: 255, 255, 255;
+  --secondary: 79, 71, 97;
+  --secondary-hover: 98, 90, 116;
+  --secondary-active: 124, 116, 142;
+  --secondary-fg: 255, 255, 255;
+
+  --fg: 255, 255, 255;
+  --fg-secondary: 142, 134, 170;
+  --fg-tertiary: 116, 108, 144;
+  --bg: 28, 20, 36;
+  --bg-modal: 35, 25, 45;
+  --bg-secondary: 57, 48, 66;
+  --bg-tertiary: 79, 71, 87;
+
+  --tooltip: 255, 255, 255;
+  --tooltip-fg: 0, 0, 0;
+  --link: 58, 149, 255;
+  --input: var(--bg);
+  --input-focus: var(--bg-modal);
+
+  --border: 44, 34, 54;
+  --border-hover: 57, 48, 66;
+  --border-active: 79, 71, 87;
+  --border-focus: 79, 71, 87;
+}
