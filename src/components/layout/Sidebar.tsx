@@ -51,16 +51,15 @@ const SidebarButton = ({
   activeIcon: ActiveIcon,
   activeClass,
   href,
+  baseUrl,
 }: {
   title: string;
   icon: IconType;
   activeIcon: IconType;
-  activeClass: string;
-  href: string | undefined;
+  activeClass?: string;
+  href?: string;
+  baseUrl: string;
 }) => {
-  const pathname = usePathname();
-  const baseUrl = "/" + pathname.split("/")[1];
-
   const btn = (
     <div className="pb-2">
       <Tooltip text={title} direction="right" offset={15}>
@@ -82,6 +81,9 @@ const SidebarButton = ({
 };
 
 const Sidebar = () => {
+  const pathname = usePathname();
+  const baseUrl = "/" + pathname.split("/")[1];
+
   return (
     <>
       <div className="relative min-w-14"></div>
@@ -95,17 +97,24 @@ const Sidebar = () => {
               activeIcon={l.activeIcon}
               activeClass={l.activeClass}
               href={l.href}
+              baseUrl={baseUrl}
             />
           ))}
           <div className="mb-4 mt-2 h-px w-full bg-border-hover"></div>
           <div className="pb-2">
             <Tooltip text="Add Repository" direction="right" offset={15}>
-              <button
+              <Link
                 type="button"
-                className="p-2 rounded-md text-primary-fg bg-primary hover:bg-primary-hover active:bg-primary-active"
+                className={
+                  "block p-2 rounded-md " +
+                  (baseUrl === "/add"
+                    ? "scale-90 bg-primary-active shadow-[0_0_5px_2px_rgba(var(--primary-active))]"
+                    : "text-primary-fg bg-primary hover:bg-primary-hover active:bg-primary-active")
+                }
+                href="/add"
               >
                 <HiPlus className="h-6 w-6" />
-              </button>
+              </Link>
             </Tooltip>
           </div>
         </div>
