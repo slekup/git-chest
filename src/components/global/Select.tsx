@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
 
@@ -60,7 +62,7 @@ const Select = <T,>({ options, value, disabled, onChange }: Props<T>) => {
     >
       <button
         type="button"
-        className={`flex h-12 max-h-12 w-full cursor-pointer justify-between rounded-lg border-2 border-border py-3 pl-4 pr-3 font-semibold ring-primary/30 transition ${
+        className={`flex h-12 max-h-12 w-full cursor-pointer justify-between rounded-lg border border-border py-3 pl-4 pr-3 font-semibold ring-primary/30 transition ${
           disabled
             ? "cursor-default"
             : "btn-default focus:border focus:border-primary focus:bg-bg-secondary focus:ring"
@@ -103,7 +105,7 @@ const Select = <T,>({ options, value, disabled, onChange }: Props<T>) => {
               id="select-dropdown"
             >
               <div
-                className={`thin-scroll top-0 z-[100] max-h-60 origin-top cursor-default overflow-y-auto overflow-x-hidden rounded-lg border-2 border-border bg-bg p-1 transition-all duration-200 ${
+                className={`thin-scroll top-0 z-[100] max-h-60 origin-top cursor-default overflow-y-auto overflow-x-hidden rounded-lg border border-border bg-bg p-1 transition-all duration-200 ${
                   focused ? "" : "invisible h-0 -translate-y-3 opacity-0"
                 }`}
               >

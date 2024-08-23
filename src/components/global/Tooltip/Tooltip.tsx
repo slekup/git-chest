@@ -1,11 +1,14 @@
+"use client";
+
 import React, { useEffect, useRef, useState } from "react";
 
 import TooltipText from "./TooltipText";
 
 interface Props {
   children: React.ReactNode;
-  direction?: "top" | "bottom" | "left" | "right";
   text: string;
+  delay?: number;
+  direction?: "top" | "bottom" | "left" | "right";
   offset?: number;
   disabled?: boolean;
   className?: string;
@@ -16,8 +19,9 @@ interface Props {
 
 const Tooltip = ({
   children,
-  direction,
   text,
+  delay = 0,
+  direction = "top",
   offset,
   disabled,
   className,
@@ -31,6 +35,9 @@ const Tooltip = ({
   const [fromTop, setFromTop] = useState<number>(0);
   const [fromLeft, setFromLeft] = useState<number>(0);
 
+  const [hoverTimeout, setHoverTimeout] = useState<
+    NodeJS.Timeout | undefined
+  >();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const show = () => {
@@ -49,7 +56,7 @@ const Tooltip = ({
 
     const useOffset = offset || 10;
 
-    if (direction === "top" || !direction) {
+    if (direction === "top") {
       setFromTop(Math.round(topDis) - height - useOffset);
       setFromLeft(Math.round(leftDis) + width / 2);
     } else if (direction === "left") {
@@ -69,6 +76,21 @@ const Tooltip = ({
     setOpen(false);
   };
 
+  const handleMouseEnter = () => {
+    const timeoutId = setTimeout(() => {
+      show();
+    }, delay);
+    setHoverTimeout(timeoutId);
+  };
+
+  const handleMouseLeave = () => {
+    hide();
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(undefined);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -76,10 +98,10 @@ const Tooltip = ({
   return (
     <>
       <span
-        onMouseEnter={(_) => show()}
-        onFocus={(_) => show()}
-        onMouseLeave={() => hide()}
-        onBlur={() => hide()}
+        onMouseEnter={handleMouseEnter}
+        onFocus={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onBlur={handleMouseLeave}
         className={`inline ${className || ""}`}
         onClick={onClick && onClick}
         ref={inputRef}

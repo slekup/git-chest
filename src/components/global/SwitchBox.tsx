@@ -14,7 +14,7 @@ const SwitchBox = ({ title, value, onChange, className }: Props) => {
 
   return (
     <div
-      className={`text-fg-secondary transition hover:bg-secondary active:bg-secondary-hover flex w-full justify-between rounded-lg border-2 border-border hover:border-border-hover active:border-border-active px-4 py-3 ${
+      className={`text-fg-secondary transition hover:bg-secondary active:bg-secondary-hover flex w-full justify-between rounded-lg border border-border hover:border-border-hover active:border-border-active px-4 py-3 ${
         className && className
       }`}
       onClick={toggleState}

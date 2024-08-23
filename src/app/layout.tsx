@@ -10,6 +10,7 @@ import Toasts from "../components/global/Toasts/Toasts";
 import { store } from "../store";
 
 import "@styles/app.css";
+import Header from "@components/layout/Header";
 
 export default function RootLayout({
   children,
@@ -38,7 +39,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="absolute flex w-full h-full no-select cursor-default">
+      <body className="absolute top-0 right-0 bottom-0 left-0 no-select cursor-default">
         <ThemeProvider
           enableSystem={false}
           defaultTheme={"dark"}
@@ -47,8 +48,13 @@ export default function RootLayout({
           enableColorScheme={false}
         >
           <Provider store={store}>
-            <Sidebar />
-            <div className="relative h-full w-full">{children}</div>
+            <Header />
+            <div className="fixed top-14 bottom-0 left-0 w-full flex">
+              <Sidebar />
+              <div className="w-full overflow-y-auto overflow-x-clip">
+                {children}
+              </div>
+            </div>
             <Toasts />
           </Provider>
         </ThemeProvider>

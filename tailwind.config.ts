@@ -27,6 +27,14 @@ const config: Config = {
         `rgba(var(--secondary-active), ${opacityValue ?? 1})`,
       "secondary-fg": ({ opacityValue }: { opacityValue: string }) =>
         `rgba(var(--secondary-fg), ${opacityValue ?? 1})`,
+      secondary2: ({ opacityValue }: { opacityValue: string }) =>
+        `rgba(var(--secondary2), ${opacityValue ?? 1})`,
+      "secondary2-hover": ({ opacityValue }: { opacityValue: string }) =>
+        `rgba(var(--secondary2-hover), ${opacityValue ?? 1})`,
+      "secondary2-active": ({ opacityValue }: { opacityValue: string }) =>
+        `rgba(var(--secondary2-active), ${opacityValue ?? 1})`,
+      "secondary2-fg": ({ opacityValue }: { opacityValue: string }) =>
+        `rgba(var(--secondary2-fg), ${opacityValue ?? 1})`,
       menu: ({ opacityValue }: { opacityValue: string }) =>
         `rgba(var(--menu), ${opacityValue ?? 1})`,
       "menu-fg": ({ opacityValue }: { opacityValue: string }) =>
@@ -47,6 +55,8 @@ const config: Config = {
         `rgba(var(--bg), ${opacityValue ?? 1})`,
       "bg-modal": ({ opacityValue }: { opacityValue: string }) =>
         `rgba(var(--bg-modal), ${opacityValue ?? 1})`,
+      "bg-sidebar": ({ opacityValue }: { opacityValue: string }) =>
+        `rgba(var(--bg-sidebar), ${opacityValue ?? 1})`,
       "bg-secondary": ({ opacityValue }: { opacityValue: string }) =>
         `rgba(var(--bg-secondary), ${opacityValue ?? 1})`,
       "bg-tertiary": ({ opacityValue }: { opacityValue: string }) =>
