@@ -12,9 +12,9 @@
   --warning-hover: 254, 207, 112;
   --warning-active: 251, 170, 2;
   --warning-fg: 0, 0, 0;
-  --success: 132, 204, 22;
-  --success-hover: 101, 163, 13;
-  --success-active: 77, 124, 15;
+  --success: 22, 163, 74;
+  --success-hover: 21, 128, 61;
+  --success-active: 22, 101, 52;
   --success-fg: 255, 255, 255;
   --danger: 255, 51, 51;
   --danger-hover: 219, 15, 15;
@@ -53,8 +53,8 @@
 
   --border: 50, 50, 50;
   --border-hover: 80, 80, 80;
-  --border-active: 120, 120, 120;
-  --border-focus: 255, 255, 255;
+  --border-active: var(--primary);
+  --border-focus: var(--primary);
 }
 
 [data-theme="light"] {

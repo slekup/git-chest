@@ -2,26 +2,42 @@ import { Switch } from "@components";
 
 interface Props {
   title: string;
+  description?: string;
   value: boolean;
   onChange: (value: boolean) => void;
   className?: string;
 }
 
-const SwitchBox = ({ title, value, onChange, className }: Props) => {
+const SwitchBox = ({
+  title,
+  description,
+  value,
+  onChange,
+  className,
+}: Props) => {
   const toggleState = () => {
     onChange(!value);
   };
 
   return (
     <div
-      className={`text-fg-secondary transition hover:bg-secondary active:bg-secondary-hover flex w-full justify-between rounded-lg border border-border hover:border-border-hover active:border-border-active px-4 py-3 ${
-        className && className
-      }`}
+      className={`flex cursor-pointer w-full ${className && className}`}
       onClick={toggleState}
     >
-      <h3 className="font-semibold">{title}</h3>
-      <div>
-        <Switch value={value} />
+      <div className="w-1/2">
+        <h3 className="font-semibold text-fg">{title}</h3>
+        {description && (
+          <p className="mt-1 text-sm text-fg-tertiary">
+            {description.split("\\n").map((part, i) => (
+              <p key={i}>{part}</p>
+            ))}
+          </p>
+        )}
+      </div>
+      <div className="relative w-1/2 pl-10">
+        <div className="absolute top-1/2 -translate-y-1/2">
+          <Switch value={value} />
+        </div>
       </div>
     </div>
   );

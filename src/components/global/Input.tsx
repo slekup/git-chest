@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => {
@@ -5,7 +7,7 @@ const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => {
     <input
       type="text"
       {...props}
-      className="mt-1 py-3 px-4 rounded-lg bg-input focus:bg-input-focus border border-border hover:border-border-hover focus:border-border-focus font-semibold text-2xl w-full"
+      className={`py-3 px-4 rounded-md bg-input focus:bg-input-focus border border-border hover:border-border-hover focus:border-border-focus w-full ${props.className || ""}`}
     ></input>
   );
 };

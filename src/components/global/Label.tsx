@@ -5,9 +5,7 @@ interface Props {
 }
 
 const Label = ({ text }: Props) => {
-  return (
-    <label className="font-bold uppercase text-fg-secondary">{text}:</label>
-  );
+  return <label className="text-sm text-fg-tertiary">{text}:</label>;
 };
 
 export default Label;

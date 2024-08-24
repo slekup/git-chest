@@ -42,7 +42,7 @@ function Switch({ value, onChange, size, color, className }: Props) {
       <>
         <button
           type="button"
-          className={`group flex h-6 w-10 cursor-pointer items-center rounded-full px-1 shadow-inner transition duration-300 ${
+          className={`group flex h-6 w-10 cursor-pointer items-center rounded-full px-1 transition duration-300 ${
             value ? (color ? color : "bg-success") : "bg-secondary-active"
           } ${className && className}`}
           onClick={toggleState}

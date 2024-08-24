@@ -1,37 +1,45 @@
-"use client";
-
 import React, { useState } from "react";
 import ReactDOM from "react-dom";
 
 import { HiChevronDown } from "react-icons/hi";
+import {
+  RiCheckboxBlankCircleLine,
+  RiCheckboxCircleFill,
+} from "react-icons/ri";
 
-import { BsCheckCircleFill } from "react-icons/bs";
-
-export interface SelectOption<T> {
+export interface MultiSelectOption<T> {
   label: React.ReactElement | string;
   value: T;
 }
 
 interface Props<T> {
-  options: SelectOption<T>[];
-  value?: T;
-  onChange: (value: T) => void;
+  options: MultiSelectOption<T>[];
+  value: T[];
+  onChange: (value: T[]) => void;
   title?: string;
   disabled?: boolean;
 }
 
-const Select = <T,>({
+const MultiSelect = <T,>({
   options,
   value,
   onChange,
   title,
   disabled,
 }: Props<T>) => {
-  const [focused, setFocused] = useState<boolean>(false);
+  const [focused, setFocused] = useState(false);
 
   const [width, setWidth] = useState<number>(0);
   const [fromTop, setFromTop] = useState<number>(0);
   const [fromLeft, setFromLeft] = useState<number>(0);
+
+  const handleSelect = (selectedValue: T) => {
+    if (value?.includes(selectedValue)) {
+      onChange(value.filter((item) => item !== selectedValue));
+    } else {
+      onChange([...(value || []), selectedValue]);
+    }
+  };
 
   const toggleSelect = (
     e:
@@ -90,11 +98,9 @@ const Select = <T,>({
         }}
         id={focused ? "select-btn-true" : ""}
       >
-        {value !== undefined
-          ? options.find((o) => o?.value === value)?.label
-          : title || "Select from dropdown"}
+        <p>{title || "Select from Dropdown"}</p>
         <HiChevronDown
-          className={`pointer-events-none h-5 w-5 transition duration-200 ${focused && "rotate-180"}`}
+          className={`h-5 w-5 transition duration-200 ${focused && "rotate-180"}`}
         />
       </button>
 
@@ -122,8 +128,7 @@ const Select = <T,>({
                     index={index}
                     option={option}
                     value={value}
-                    onChange={onChange}
-                    setFocused={setFocused}
+                    handleSelect={handleSelect}
                   />
                 ))}
               </div>
@@ -136,27 +141,18 @@ const Select = <T,>({
 };
 
 interface OptionProps<T> {
-  option: SelectOption<T>;
-  value?: T;
-  onChange: (value: T) => void;
+  option: MultiSelectOption<T>;
   index: number;
-  setFocused: (value: React.SetStateAction<boolean>) => void;
+  value?: T[];
+  handleSelect: (value: T) => void;
 }
 
-const Option = <T,>({
-  option,
-  value,
-  onChange,
-  index,
-  setFocused,
-}: OptionProps<T>) => {
+const Option = <T,>({ option, index, value, handleSelect }: OptionProps<T>) => {
   return (
     <button
       type="button"
-      onClick={() => {
-        onChange(option.value);
-        setFocused(false);
-      }}
+      key={option.value as unknown as string}
+      onClick={() => handleSelect(option.value)}
       onKeyDown={(e) => {
         if (e.key === "ArrowUp") {
           e.preventDefault();
@@ -179,23 +175,24 @@ const Option = <T,>({
         }
 
         if (e.key === "Enter") {
-          onChange(option.value);
-          setFocused(false);
+          handleSelect(option.value);
         }
       }}
-      className={`p-3 my-1 rounded-md flex w-full justify-between text-left ${
-        value === option.value
+      className={`p-3 my-1 rounded-md flex w-full text-left ${
+        value?.includes(option.value)
           ? "bg-secondary-hover font-semibold"
-          : "hover:bg-secondary active:bg-secondary-hover"
+          : "text-fg-secondary hover:bg-secondary active:bg-secondary-hover"
       }`}
       id={`select-dropdown-item-${index.toString()}`}
     >
-      <p className="text-sm">{option.label}</p>
-      {value === option.value && (
-        <BsCheckCircleFill className="mt-0.5 h-4 w-4 text-fg-success" />
+      {value?.includes(option.value) ? (
+        <RiCheckboxCircleFill className="mt-0.5 h-4 w-4 text-success" />
+      ) : (
+        <RiCheckboxBlankCircleLine className="mt-0.5 h-4 w-4 text-fg-tertiary" />
       )}
+      <p className="text-sm pl-3">{option.label}</p>
     </button>
   );
 };
 
-export default Select;
+export default MultiSelect;
