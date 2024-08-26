@@ -26,17 +26,24 @@ body {
   scrollbar-width: normal;
 }
 
+::selection {
+  background: rgb(var(--fg));
+  color: rgb(var(--bg));
+}
+
 a:focus-visible,
 button:focus-visible {
   box-shadow: 0 0 0 4px rgb(var(--fg));
 }
 
-*:focus {
+a:focus,
+button:focus {
   outline: none;
 }
 
 input {
   cursor: text;
+  outline: none;
 }
 
 .no-select {

@@ -1,5 +1,9 @@
-import React, { useState } from "react";
+"use client";
+
+import clsx from "clsx";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
+import { IconType } from "react-icons";
 
 import { HiChevronDown } from "react-icons/hi";
 import {
@@ -8,6 +12,7 @@ import {
 } from "react-icons/ri";
 
 export interface MultiSelectOption<T> {
+  icon?: IconType;
   label: React.ReactElement | string;
   value: T;
 }
@@ -16,7 +21,7 @@ interface Props<T> {
   options: MultiSelectOption<T>[];
   value: T[];
   onChange: (value: T[]) => void;
-  title?: string;
+  title?: React.ReactElement | string;
   disabled?: boolean;
 }
 
@@ -27,11 +32,16 @@ const MultiSelect = <T,>({
   title,
   disabled,
 }: Props<T>) => {
-  const [focused, setFocused] = useState(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [focused, setFocused] = useState<boolean>(false);
 
   const [width, setWidth] = useState<number>(0);
   const [fromTop, setFromTop] = useState<number>(0);
   const [fromLeft, setFromLeft] = useState<number>(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSelect = (selectedValue: T) => {
     if (value?.includes(selectedValue)) {
@@ -72,16 +82,18 @@ const MultiSelect = <T,>({
 
   return (
     <div
-      className={`w-full ${focused ? "z-[100]" : "z-50"}`}
+      className={clsx("w-full", focused ? "z-[100]" : "z-50")}
       onScroll={handleScroll}
     >
       <button
         type="button"
-        className={`text-fg-secondary flex h-12 max-h-12 w-full justify-between rounded-md border border-border hover:border-border-hover active:border-border-active py-3 pl-4 pr-3 ${
+        className={clsx(
+          "text-fg-secondary flex h-12 max-h-12 w-full justify-between rounded-md border border-border hover:border-border-hover active:border-border-active py-3 pl-4 pr-3",
           disabled
             ? "cursor-default opacity/50"
-            : "cursor-pointer btn-default focus:border focus:border-primary bg-input focus:bg-input-focus"
-        }`}
+            : "cursor-pointer btn-default focus:border focus:border-primary bg-input focus:bg-input-focus",
+          focused ? "border-primary" : "",
+        )}
         onClick={(e) => toggleSelect(e)}
         onFocus={(e) => toggleSelect(e, true)}
         onKeyDown={(e) => {
@@ -100,15 +112,21 @@ const MultiSelect = <T,>({
       >
         <p>{title || "Select from Dropdown"}</p>
         <HiChevronDown
-          className={`h-5 w-5 transition duration-200 ${focused && "rotate-180"}`}
+          className={clsx(
+            "h-5 w-5 transition duration-200",
+            focused && "rotate-180",
+          )}
         />
       </button>
 
-      {document.body &&
+      {mounted &&
         ReactDOM.createPortal(
           <>
             <div
-              className={`fixed left-0 top-0 z-[90] h-full w-full ${!focused && "hidden"}`}
+              className={clsx(
+                "fixed left-0 top-0 z-[90] h-full w-full",
+                !focused && "hidden",
+              )}
               onClick={() => setFocused(false)}
             ></div>
 
@@ -118,9 +136,10 @@ const MultiSelect = <T,>({
               id="select-dropdown"
             >
               <div
-                className={`thin-scroll top-0 z-[100] max-h-60 origin-top cursor-default overflow-y-auto overflow-x-hidden rounded-md border border-border bg-bg px-2 py-1 transition duration-300 ${
-                  focused ? "" : "invisible h-0 -translate-y-3 opacity-0"
-                }`}
+                className={clsx(
+                  "thin-scroll top-0 z-[100] max-h-60 origin-top cursor-default overflow-y-auto overflow-x-hidden rounded-md border border-border bg-bg px-2 py-1 transition duration-300",
+                  focused ? "" : "invisible h-0 -translate-y-3 opacity-0",
+                )}
               >
                 {options.map((option, index) => (
                   <Option
@@ -178,19 +197,23 @@ const Option = <T,>({ option, index, value, handleSelect }: OptionProps<T>) => {
           handleSelect(option.value);
         }
       }}
-      className={`p-3 my-1 rounded-md flex w-full text-left ${
+      className={clsx(
+        "p-3 my-1 rounded-md flex w-full text-left",
         value?.includes(option.value)
           ? "bg-secondary-hover font-semibold"
-          : "text-fg-secondary hover:bg-secondary active:bg-secondary-hover"
-      }`}
+          : "text-fg-secondary hover:bg-secondary active:bg-secondary-hover",
+      )}
       id={`select-dropdown-item-${index.toString()}`}
     >
       {value?.includes(option.value) ? (
-        <RiCheckboxCircleFill className="mt-0.5 h-4 w-4 text-success" />
+        <RiCheckboxCircleFill className="mt-0.5 h-4 w-4 text-fg" />
       ) : (
         <RiCheckboxBlankCircleLine className="mt-0.5 h-4 w-4 text-fg-tertiary" />
       )}
-      <p className="text-sm pl-3">{option.label}</p>
+      {option.icon && (
+        <option.icon className="h-5 w-5 ml-5 my-0.5 mr-2 text-fg-tertiary" />
+      )}
+      <span className="text-sm">{option.label}</span>
     </button>
   );
 };

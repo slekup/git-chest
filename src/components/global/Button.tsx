@@ -1,5 +1,7 @@
 "use client";
 
+import clsx from "clsx";
+import Link, { LinkProps } from "next/link";
 import React from "react";
 
 export interface ButtonProps
@@ -13,10 +15,12 @@ export interface ButtonProps
     | "menu"
     | "menu-active"
     | "danger"
+    | "danger-outline"
     | "warning"
     | "success";
   readonly width?: "auto" | "full";
   readonly link?: boolean;
+  readonly href?: string;
 }
 
 const Button = ({
@@ -24,13 +28,13 @@ const Button = ({
   size = "md",
   variant = "primary",
   width = "auto",
-  link = false,
+  href,
   ...props
 }: ButtonProps): JSX.Element => {
   const sizeStyle = {
-    sm: "px-4 py-1.5 text-sm",
-    md: "px-5 py-2.5 text-sm",
-    lg: "px-6 py-3.5 text-lg",
+    sm: "px-3 py-1.5 text-xs font-semibold",
+    md: "px-5 py-2.5 text-sm font-medium",
+    lg: "px-6 py-3.5 text-lg font-medium",
   };
 
   const variantStyle = {
@@ -48,6 +52,8 @@ const Button = ({
 
     danger:
       "bg-danger hover:bg-danger-hover active:bg-danger-active text-danger-fg border border-transparent",
+    "danger-outline":
+      "bg-bg text-fg-secondary hover:text-fg active:text-fg border border-danger-active hover:border-transparent active:border-transparent hover:bg-danger active:bg-danger-active text-danger-fg",
 
     warning:
       "bg-warning hover:bg-warning-hover active:bg-warning-active text-warning-fg border border-transparent",
@@ -56,22 +62,30 @@ const Button = ({
       "bg-success hover:bg-success-hover active:bg-success-active text-success-fg border border-transparent",
   };
 
-  return link ? (
-    <p
-      className={`rounded-md font-medium ${
-        sizeStyle[size]
-      } ${variantStyle[variant]} ${width === "full" && "w-full"} ${props.className}`}
-      {...(props as React.HTMLAttributes<HTMLParagraphElement>)}
+  return href ? (
+    <Link
+      className={clsx(
+        "rounded-md",
+        sizeStyle[size],
+        variantStyle[variant],
+        width === "full" && "w-full",
+        props.className,
+      )}
+      {...(props as LinkProps)}
     >
       {label}
-    </p>
+    </Link>
   ) : (
     <button
       type="button"
       {...props}
-      className={`rounded-md font-medium ${
-        sizeStyle[size]
-      } ${variantStyle[variant]} ${width === "full" ? "w-full" : ""} ${props.className}`}
+      className={clsx(
+        "rounded-md",
+        sizeStyle[size],
+        variantStyle[variant],
+        width === "full" ? "w-full" : "",
+        props.className,
+      )}
     >
       {label}
     </button>

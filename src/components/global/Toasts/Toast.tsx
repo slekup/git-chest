@@ -7,6 +7,7 @@ import { HiCheckCircle } from "react-icons/hi";
 import { IoWarning } from "react-icons/io5";
 import { useDispatch } from "react-redux";
 import { removeToast, resetTime } from "@slices/toasts.slice";
+import clsx from "clsx";
 
 const typeBorder = {
   [ToastType.Info]: "border-primary/20",
@@ -64,17 +65,21 @@ const Toast = ({ toast }: Props) => {
 
   return (
     <div
-      className={`relative overflow-hidden grid max-w-80 rounded-lg border-border bg-bg shadow-lg transition-all duration-500 ${
+      className={clsx(
+        "relative overflow-hidden grid max-w-80 rounded-lg border-border bg-bg shadow-lg transition-all duration-500",
         visible
           ? `mb-2 animate-[toast-enter_300ms_ease] grid-rows-[1fr] border ${typeBorder[toast.type]}`
-          : "translate-x-full grid-rows-[0fr] opacity-0"
-      }`}
+          : "translate-x-full grid-rows-[0fr] opacity-0",
+      )}
       onMouseOver={() => {
         dispatch(resetTime(toast.id as string));
       }}
     >
       <div
-        className={`absolute h-0.5 w-full origin-right ${typeBackgroundFull[toast.type]}`}
+        className={clsx(
+          "absolute h-0.5 w-full origin-right",
+          typeBackgroundFull[toast.type],
+        )}
         key={animationKey}
         style={{
           animationDuration: `${toast.time}ms`,
@@ -86,7 +91,10 @@ const Toast = ({ toast }: Props) => {
         id={toast.id}
       >
         <div
-          className={`flex h-10 justify-between border-b p-1 ${typeBorder[toast.type]}`}
+          className={clsx(
+            "flex h-10 justify-between border-b p-1",
+            typeBorder[toast.type],
+          )}
         >
           <div className="flex p-1">
             <div className="mr-1">{typeIcon[toast.type]}</div>
@@ -102,7 +110,7 @@ const Toast = ({ toast }: Props) => {
         </div>
 
         {toast.description && (
-          <div className={`px-4 pb-4 pt-3 ${typeBackground[toast.type]}`}>
+          <div className={clsx("px-4 pb-4 pt-3", typeBackground[toast.type])}>
             <div className="mt-0.5 text-sm leading-4 text-fg-secondary">
               {toast.description.split("\n").map((line, i) => (
                 <p key={i}>{line}</p>

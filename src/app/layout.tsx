@@ -48,10 +48,10 @@ export default function RootLayout({
           enableColorScheme={false}
         >
           <Provider store={store}>
-            <Header />
-            <div className="fixed top-14 bottom-0 left-0 w-full flex">
+            <div className="flex">
               <Sidebar />
               <div className="w-full overflow-y-auto overflow-x-clip">
+                <Header />
                 {children}
               </div>
             </div>

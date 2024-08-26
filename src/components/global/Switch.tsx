@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import React from "react";
 
 interface Props {
@@ -20,19 +21,22 @@ function Switch({ value, onChange, size, color, className }: Props) {
       <>
         <button
           type="button"
-          className={`group flex h-4 w-7 cursor-pointer items-center rounded-full px-1 transition duration-300 ${
+          className={clsx(
+            "group flex h-4 w-7 cursor-pointer items-center rounded-full px-1 transition-[transform,background] duration-300",
             value
               ? color
                 ? `bg-${color}`
                 : "bg-success"
-              : "bg-secondary-active"
-          } ${className && className}`}
+              : "bg-secondary-active",
+            className,
+          )}
           onClick={toggleState}
         >
           <div
-            className={`h-2.5 w-2.5 transform rounded-full bg-bg duration-300 ease-in-out 
-              ${value ? "translate-x-2.5 transform" : null}
-            `}
+            className={clsx(
+              "h-2.5 w-2.5 transform rounded-full bg-bg duration-300 ease-in-out",
+              value ? "translate-x-2.5 transform" : null,
+            )}
           ></div>
         </button>
       </>
@@ -42,14 +46,18 @@ function Switch({ value, onChange, size, color, className }: Props) {
       <>
         <button
           type="button"
-          className={`group flex h-6 w-10 cursor-pointer items-center rounded-full px-1 transition duration-300 ${
-            value ? (color ? color : "bg-success") : "bg-secondary-active"
-          } ${className && className}`}
+          className={clsx(
+            "group flex h-6 w-10 cursor-pointer items-center rounded-full px-1 transition-[transform,background] duration-300",
+            value ? (color ? color : "bg-success") : "bg-secondary-active",
+            className,
+          )}
           onClick={toggleState}
         >
           <div
-            className={`h-4 w-4 transform rounded-full bg-bg duration-300 ease-in-out 
-              ${value ? "translate-x-4 transform" : ""}`}
+            className={clsx(
+              "h-4 w-4 transform rounded-full bg-bg duration-300 ease-in-out",
+              value ? "translate-x-4 transform" : "",
+            )}
           ></div>
         </button>
       </>

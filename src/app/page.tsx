@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <main className="max-w-3xl mx-auto my-20 p-5">
       <div className="relative">
-        <HiOutlineSearch className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-fg-tertiary/50" />
+        <HiOutlineSearch className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-fg-tertiary/50 pointer-events-none" />
         <input
           className="w-full py-5 pl-14 pr-8 text-lg rounded-md bg-input hover:bg-input-hover focus:bg-input-focus border border-border hover:border-border-hover active:border-border-active focus:border-border-focus placeholder:text-fg-tertiary"
           placeholder="Search your local directory..."

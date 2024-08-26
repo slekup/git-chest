@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import React, { useEffect, useState } from "react";
 import ReactDom from "react-dom";
 
@@ -27,9 +28,10 @@ const TooltipText = ({
   const component = (
     <>
       <span
-        className={`fixed z-90 rounded-sm bg-tooltip px-3 py-2 font-medium text-tooltip-fg after:absolute after:border-[5px] after:border-transparent after:content-[''] ${
-          lg ? "text-base" : "text-sm"
-        } ${!open && "invisible scale-90 opacity-0"} ${
+        className={clsx(
+          "fixed z-90 rounded-sm bg-tooltip px-3 py-2 font-medium text-tooltip-fg after:absolute after:border-[5px] after:border-transparent after:content-['']",
+          lg ? "text-base" : "text-sm",
+          !open && "invisible scale-90 opacity-0",
           direction === "top" || !direction
             ? "origin-bottom -translate-x-1/2 after:left-1/2 after:top-full after:-translate-x-1/2 after:border-t-tooltip"
             : direction === "left"
@@ -37,8 +39,8 @@ const TooltipText = ({
               : direction === "bottom"
                 ? "origin-top -translate-x-1/2 after:bottom-full after:left-1/2 after:-translate-x-1/2 after:border-b-tooltip"
                 : direction === "right" &&
-                  "-mt-1 origin-left -translate-y-1/2 after:right-full after:top-1/2  after:-translate-y-1/2 after:border-r-tooltip"
-        }`}
+                  "-mt-1 origin-left -translate-y-1/2 after:right-full after:top-1/2  after:-translate-y-1/2 after:border-r-tooltip",
+        )}
         style={{
           top: fromTop,
           left: fromLeft,
@@ -47,7 +49,7 @@ const TooltipText = ({
         }}
       >
         {direction === "left" || direction === "right" ? (
-          <p className="-mt-px">{text || "Tooltip"}</p>
+          <span className="-mt-px">{text || "Tooltip"}</span>
         ) : (
           text || "Tooltip"
         )}

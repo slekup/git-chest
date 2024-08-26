@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import TooltipText from "./TooltipText";
+import clsx from "clsx";
 
 interface Props {
   children: React.ReactNode;
@@ -102,7 +103,7 @@ const Tooltip = ({
         onFocus={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onBlur={handleMouseLeave}
-        className={`inline ${className || ""}`}
+        className={clsx("inline", className || "")}
         onClick={onClick && onClick}
         ref={inputRef}
       >

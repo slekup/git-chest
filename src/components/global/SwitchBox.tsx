@@ -1,4 +1,5 @@
 import { Switch } from "@components";
+import clsx from "clsx";
 
 interface Props {
   title: string;
@@ -21,20 +22,20 @@ const SwitchBox = ({
 
   return (
     <div
-      className={`flex cursor-pointer w-full ${className && className}`}
+      className={clsx("flex justify-between cursor-pointer w-full", className)}
       onClick={toggleState}
     >
-      <div className="w-1/2">
+      <div className="w-full">
         <h3 className="font-semibold text-fg">{title}</h3>
         {description && (
           <p className="mt-1 text-sm text-fg-tertiary">
             {description.split("\\n").map((part, i) => (
-              <p key={i}>{part}</p>
+              <span key={i}>{part}</span>
             ))}
           </p>
         )}
       </div>
-      <div className="relative w-1/2 pl-10">
+      <div className="relative w-10 ml-12">
         <div className="absolute top-1/2 -translate-y-1/2">
           <Switch value={value} />
         </div>

@@ -2,6 +2,12 @@
 
 Store and sync repository metadata (data optional) for offline browsing, analysis, and updates.
 
+Useful for:
+
+- Mirroring and archiving remote repositories in case they are ever deleted.
+- Searching through your own local database of repositories.
+- Viewing a repositories README, file-tree, and other metadata locally without cloning it.
+
 ## Supported Git Hosts
 
 - [ ] GitHub
