@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import Image from "next/image";
 import { useDispatch } from "react-redux";
+import { invoke } from "@tauri-apps/api/core";
 
 import { HiOutlineEyeOff, HiX, HiCheck } from "react-icons/hi";
 import { HiOutlineEye, HiEye, HiOutlineCog6Tooth } from "react-icons/hi2";
@@ -32,6 +33,8 @@ import {
   SwitchBox,
   Modal,
 } from "@components";
+import { listen } from "@tauri-apps/api/event";
+import clsx from "clsx";
 
 interface Directory {
   id: number;
@@ -46,7 +49,7 @@ enum Platform {
   Gitea = "gitea",
 }
 
-enum Watch {
+enum RepoEvent {
   Branches = "branches",
   Contributors = "contributors",
   Commits = "commits",
@@ -69,17 +72,42 @@ interface AddRepoForm {
   platform: Platform;
   user: string;
   repo: string;
-  submodules: boolean;
+  add_submodules: boolean;
   clone_data: boolean;
-  watching: Watch[];
+  watch_events: RepoEvent[];
   auto_sync: AutoSync;
 }
+
+interface AddRepoProgress {
+  progress: number;
+  step: string;
+}
+
+const repoProgressStep: { [key: string]: any } = {
+  insert_basic_info: "Add basic information to database",
+  fetch_metadata: "Fetch metadata from platform",
+  insert_metadata: "Add metadata to database",
+  fetch_tree: "Fetch tree from platform",
+  insert_tree: "Add tree contents to database (potentially slow)",
+};
+
+const repoProgressSteps = [
+  "insert_basic_info",
+  "fetch_metadata",
+  "insert_metadata",
+  "fetch_tree",
+  "insert_tree",
+];
 
 export default function Add() {
   const [directoryName, setDirectoryName] = useState<string | undefined>();
   const [directories, setDirectories] = useState<Directory[] | undefined>();
   const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
   const [fromURL, setFromURL] = useState<string>("");
+  const [addingRepo, setAddingRepo] = useState<boolean>(false);
+  const [addRepoProgress, setAddRepoProgress] = useState<
+    AddRepoProgress | undefined
+  >();
 
   const dispatch = useDispatch();
   const params = useSearchParams();
@@ -107,6 +135,12 @@ export default function Add() {
       //   .catch(console.error);
     }
   }, [directoryId]);
+
+  useEffect(() => {
+    listen<AddRepoProgress>("add-repo-progress", (event) => {
+      setAddRepoProgress(event.payload);
+    });
+  }, []);
 
   const fillFail = (msg: string) => {
     dispatch(
@@ -171,11 +205,93 @@ export default function Add() {
   };
 
   const onSubmit: SubmitHandler<AddRepoForm> = async (data) => {
-    alert("asdf");
-    return;
+    setAddingRepo(true);
+
+    invoke<number>("add_repo", {
+      repo: {
+        platform: data.platform,
+        user: data.user,
+        repo: data.repo,
+        clone_data: data.clone_data,
+        auto_sync: data.auto_sync,
+        add_submodules: data.add_submodules,
+        watch_events: data.watch_events ?? [],
+      },
+    })
+      .then((_) => {
+        setAddingRepo(false);
+        dispatch({
+          title: "Successfully added repository.",
+          description: `User: ${data.user}\nRepository:${data.repo}`,
+          type: ToastType.Success,
+        });
+
+        /// TODO: Redirect to the repo page.
+      })
+      .catch((err) => {
+        setAddingRepo(false);
+        dispatch(
+          addToast({
+            title: "Failed to add repo",
+            description: err,
+            type: ToastType.Error,
+          }),
+        );
+      });
   };
 
-  return (
+  return addingRepo ? (
+    addRepoProgress ? (
+      <main className="max-w-3xl mx-auto my-10 p-5">
+        <div className="bg-bg-secondary border border-border p-5 rounded-lg">
+          {repoProgressSteps.map((step, i) =>
+            ((current_i) => (
+              <div
+                key={i}
+                className={clsx(
+                  "flex mt-5 w-full transition-[opacity] duration-500",
+                  current_i < i && "opacity-30",
+                )}
+              >
+                <HiCheck className={clsx("h-7 w-7 text-success")} />
+                <div className="ml-5 w-full">
+                  <p className="text-fg-secondary">
+                    {repoProgressStep[step]}{" "}
+                    <span className="ml-1 text-sm text-fg-tertiary float-end">
+                      {current_i > i
+                        ? "100%"
+                        : current_i === i
+                          ? `${addRepoProgress.progress}%`
+                          : "0%"}
+                    </span>
+                  </p>
+                  <div className="block w-full mt-1 h-1 rounded-lg bg-bg-tertiary">
+                    <div
+                      className="block w-1/2 h-full rounded-lg bg-success transition-[width] duration-500"
+                      style={{
+                        width:
+                          current_i > i
+                            ? "100%"
+                            : current_i === i
+                              ? `${addRepoProgress.progress}%`
+                              : "0%",
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))(
+              repoProgressSteps.findIndex(
+                (value) => value == addRepoProgress.step,
+              ),
+            ),
+          )}
+        </div>
+      </main>
+    ) : (
+      <></>
+    )
+  ) : (
     <>
       <main className="max-w-3xl mx-auto my-10 p-5">
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -189,14 +305,7 @@ export default function Add() {
           </div>
 
           <div className="pt-3 border-t border-border">
-            <Label
-              text="Platform"
-              badge={{
-                text: "Bug",
-                variant: "success",
-                icon: LuBug,
-              }}
-            />
+            <Label text="Platform" />
             <div className="mt-1">
               <Controller
                 name="platform"
@@ -286,7 +395,7 @@ export default function Add() {
 
           <div className="py-5 border-t border-border">
             <Controller
-              name="submodules"
+              name="add_submodules"
               control={control}
               rules={{
                 required: true,
@@ -324,8 +433,9 @@ export default function Add() {
               <Label text="Watch Events" />
               <div className="mt-1">
                 <Controller
-                  name="watching"
+                  name="watch_events"
                   control={control}
+                  defaultValue={[]}
                   render={({ field: { value, onChange } }) => (
                     <MultiSelect
                       title={
@@ -355,52 +465,52 @@ export default function Add() {
                         {
                           icon: LuGitBranch,
                           label: "Branches",
-                          value: Watch.Branches,
+                          value: RepoEvent.Branches,
                         },
                         {
                           icon: LuUsers2,
                           label: "Contributors",
-                          value: Watch.Contributors,
+                          value: RepoEvent.Contributors,
                         },
                         {
                           icon: LuGitCommit,
                           label: "Commits",
-                          value: Watch.Commits,
+                          value: RepoEvent.Commits,
                         },
                         {
                           icon: LuMessagesSquare,
                           label: "Discussions",
-                          value: Watch.Discussions,
+                          value: RepoEvent.Discussions,
                         },
                         {
                           icon: LuGitFork,
                           label: "Forks",
-                          value: Watch.Forks,
+                          value: RepoEvent.Forks,
                         },
                         {
                           icon: LuBug,
                           label: "Issues",
-                          value: Watch.Issues,
+                          value: RepoEvent.Issues,
                         },
                         {
                           icon: LuGitPullRequest,
                           label: "Pull Requests",
-                          value: Watch.PullRequests,
+                          value: RepoEvent.PullRequests,
                         },
                         {
                           icon: LuRocket,
                           label: "Releases",
-                          value: Watch.Releases,
+                          value: RepoEvent.Releases,
                         },
                         {
                           icon: LuStar,
                           label: "Stars",
-                          value: Watch.Stars,
+                          value: RepoEvent.Stars,
                         },
                         {
                           icon: LuTags,
                           label: "Tags",
-                          value: Watch.Tags,
+                          value: RepoEvent.Tags,
                         },
                       ]}
                       value={value}

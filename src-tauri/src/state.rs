@@ -4,11 +4,17 @@ use tracing::info;
 
 use crate::{
     error::AppResult,
+    platforms::github::api::GitHubAPI,
     utils::dirs::{ensure_dirs, get_data_dir},
 };
 
+pub struct APIs {
+    pub github: GitHubAPI,
+}
+
 pub struct AppStateInner {
     pub pool: SqlitePool,
+    pub apis: APIs,
 }
 
 pub type AppState = Mutex<AppStateInner>;
@@ -33,6 +39,11 @@ impl AppStateInner {
 
         info!("Connected to sqlite database");
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            apis: APIs {
+                github: GitHubAPI::init(),
+            },
+        })
     }
 }

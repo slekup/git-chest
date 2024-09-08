@@ -7,17 +7,17 @@ use crate::error::AppResult;
 
 /// Where the application configuration files are stored.
 pub fn get_config_dir() -> PathBuf {
-    dirs::config_local_dir().unwrap().join("big-brain")
+    dirs::config_local_dir().unwrap().join("git-chest")
 }
 
 /// Where the non-cache data for the application is stored.
 pub fn get_data_dir() -> PathBuf {
-    dirs::data_local_dir().unwrap().join("big-brain")
+    dirs::data_local_dir().unwrap().join("git-chest")
 }
 
 /// Where the cache data for the application is stored.
 pub fn get_cache_dir() -> PathBuf {
-    dirs::cache_dir().unwrap().join("big-brain")
+    dirs::cache_dir().unwrap().join("git-chest")
 }
 
 /// Ensure that a directory and all parent directories are created.

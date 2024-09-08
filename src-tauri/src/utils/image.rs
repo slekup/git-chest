@@ -140,7 +140,7 @@ impl TryFrom<(Vec<u8>, &String)> for AppImage {
     type Error = AppError;
     fn try_from(value: (Vec<u8>, &String)) -> Result<Self, Self::Error> {
         let ext = value.1;
-        if !Self::valid_ext(&ext) {
+        if !Self::valid_ext(ext) {
             let ext_str = VALID_IMAGE_EXTENSIONS.join(", ");
             return AppError::new(&format!("Invalid image type, must be one of: {}.", ext_str));
         }

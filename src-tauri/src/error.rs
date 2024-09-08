@@ -12,6 +12,9 @@ pub enum AppError {
     #[error("Serde Error: {0}")]
     Serde(#[from] serde_json::Error),
 
+    #[error("Serde Error: {0}")]
+    Reqwest(#[from] reqwest::Error),
+
     #[error("Error: {0}")]
     Custom(String),
 }
@@ -27,6 +30,7 @@ impl serde::Serialize for AppError {
     where
         S: serde::ser::Serializer,
     {
+        // tracing::error!("{}", self.to_string());
         serializer.serialize_str(self.to_string().as_ref())
     }
 }

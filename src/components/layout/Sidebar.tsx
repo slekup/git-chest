@@ -2,6 +2,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
 import Image from "next/image";
+import clsx from "clsx";
 
 import { IconType } from "react-icons";
 import {

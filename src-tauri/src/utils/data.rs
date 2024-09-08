@@ -1,3 +1,7 @@
+use tauri::http::HeaderMap;
+
+use crate::error::{AppError, AppResult};
+
 pub fn human_readable_size(bytes: usize) -> String {
     const KB: usize = 1024;
     const MB: usize = KB * 1024;
@@ -15,4 +19,12 @@ pub fn human_readable_size(bytes: usize) -> String {
     } else {
         format!("{} bytes", bytes)
     }
+}
+
+pub fn parse_header(headers: &HeaderMap, header_name: &str) -> AppResult<i64> {
+    headers
+        .get(header_name)
+        .and_then(|val| val.to_str().ok())
+        .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Custom(format!("Failed to parse header: {}", header_name)))
 }

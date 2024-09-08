@@ -225,11 +225,26 @@ const config: Config = {
             opacity: "1",
           },
         },
+        loader: {
+          "0%": {
+            transform: "rotate(0deg)",
+            opacity: "1",
+          },
+          "50%": {
+            transform: "rotate(180deg)",
+            opacity: "0.5",
+          },
+          "100%": {
+            transform: "rotate(360deg)",
+            opacity: "1",
+          },
+        },
       },
       animation: {
         fadein: "fadein .3s ease",
         shake: "shake .4s ease",
         modalbounce: "modalbounce .3s ease",
+        loader: "loader 1.5s ease infinite",
       },
       listStyleType: { square: "square", roman: "upper-roman" },
     },
