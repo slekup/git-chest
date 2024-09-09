@@ -1,8 +1,8 @@
 # Git Chest
 
-Git Chest is a desktop application that allows you to own a local database of data from remote repositories. This includes data specific to git hosting platforms such as issues, discussions, pull requests, and more.
+Git Chest is a desktop application that allows you to own a local database of repository metadata (data optional). This includes data specific to git hosting platforms such as issues, discussions, pull requests, and more.
 
-**Features:**
+## Features
 
 - **Archiving:** Keep historical copies of remote repositories, including platform-specific data.
 - **Updates:** Watch any user, organization, and repository events.
