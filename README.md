@@ -1,16 +1,19 @@
 # Git Chest
 
-Store and sync repository metadata (data optional) for offline browsing, analysis, and updates.
+Git Chest is a desktop application that allows you to own a local database of data from remote repositories. This includes data specific to git hosting platforms such as issues, discussions, pull requests, and more.
 
-Useful for:
+**Features:**
 
-- Mirroring and archiving remote repositories in case they are ever deleted.
-- Searching through your own local database of repositories.
-- Viewing a repositories README, file-tree, and other metadata locally without cloning it.
+- **Archiving:** Keep historical copies of remote repositories, including platform-specific data.
+- **Updates:** Watch any user, organization, and repository events.
+- **Analysis:** Run your own queries on repositories using Sqlite without restriction.
+- **Mirroring:** Automatically sync changes from remote repositories to your local database.
+- **Authentication:** Increase rate limits by using your own auth tokens.
+- **Browsing:** Browse repository READMEs, file trees, and other metadata offline without needing to clone the entire repository.
 
 ## Supported Git Hosts
 
-- [ ] GitHub
+- [x] GitHub
 - [ ] GitLab
 - [ ] Gitea
 
@@ -19,6 +22,7 @@ Useful for:
 ```sh
 git clone https://github.com/slekup/git-chest
 cargo tauri dev
+# or pnpm/yarn/npm tauri dev
 ```
 
 ## License
