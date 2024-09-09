@@ -35,8 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_watch_repo_event_repo_id on watch_repo_event (rep
 
 -- Create the 'repo_tree' table.
 CREATE TABLE IF NOT EXISTS repo_tree (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    repo_id INTEGER NOT NULL,
+    repo_id INTEGER PRIMARY KEY NOT NULL,
     sha TEXT NOT NULL,
     truncated BOOLEAN NOT NULL CHECK (truncated IN (0, 1)),
     FOREIGN KEY (repo_id)
@@ -45,20 +44,16 @@ CREATE TABLE IF NOT EXISTS repo_tree (
             ON UPDATE CASCADE
 );
 
--- Create an index on the 'repo_id' column
-CREATE INDEX IF NOT EXISTS idx_repo_tree_repo_id on repo_tree (repo_id);
-
 
 
 -- Create the 'repo_tree_item' table.
 CREATE TABLE IF NOT EXISTS repo_tree_item (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     repo_id INTEGER NOT NULL,
     parent_id INTEGER,
-    path TEXT NOT NULL,
+    path TEXT NOT NULL UNIQUE,
     mode TEXT NOT NULL,
-    type TEXT NOT NULL,
-    sha TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type in ('tree', 'blob')),
+    sha TEXT NOT NULL UNIQUE,
     size INTEGER,
     FOREIGN KEY (repo_id)
         REFERENCES repo (id)
@@ -78,14 +73,10 @@ CREATE INDEX IF NOT EXISTS idx_repo_tree_item_parent_id on repo_tree_item (paren
 
 -- Create the 'repo_readme' table.
 CREATE TABLE IF NOT EXISTS repo_readme (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    repo_id INTEGER NOT NULL,
+    repo_id INTEGER PRIMARY KEY NOT NULL,
     content TEXT NOT NULL,
     FOREIGN KEY (repo_id)
         REFERENCES repo (id)
             ON DELETE CASCADE
             ON UPDATE CASCADE
 );
-
--- Create an index on the 'repo_id' column
-CREATE INDEX IF NOT EXISTS idx_repo_readme_repo_id on repo_readme (repo_id);

@@ -1,7 +1,9 @@
 -- Create the 'rate_limit' table.
 CREATE TABLE IF NOT EXISTS rate_limit (
     id TEXT PRIMARY KEY,
-    limit_value INTEGER NOT NULL,
+    max INTEGER NOT NULL,
     remaining INTEGER NOT NULL,
-    reset_value TIMESTAMP NOT NULL
+    used INTEGER NOT NULL,
+    reset_at TIMESTAMP NOT NULL,
+    resource TEXT NOT NULL
 );

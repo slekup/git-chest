@@ -21,7 +21,7 @@ pub struct GitHubAPIRepoLicense {
 }
 
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoOrganization {
+pub struct GitHubAPIRepoOrg {
     pub login: String,
     pub id: i32,
     pub node_id: String,
@@ -70,7 +70,7 @@ pub struct GitHubAPIRepo {
     pub watchers: i32,
     pub default_branch: String,
     pub custom_properties: HashMap<String, String>,
-    pub organization: Option<GitHubAPIRepoOrganization>,
+    pub org: Option<GitHubAPIRepoOrg>,
     pub network_count: i32,
     pub subscribers_count: i32,
 }
@@ -78,13 +78,14 @@ pub struct GitHubAPIRepo {
 #[derive(Deserialize)]
 pub struct GitHubAPIRepoTreeItem {
     pub path: String,
+    /// 'tree' (directory) or 'blob' (file).
     pub mode: String,
-    /// 'blob' (file) or 'tree' (directory).
     pub sha: String,
     pub r#type: String,
     pub size: Option<i32>,
 }
 
+/// The hierarchy between files in a Git repository.
 #[derive(Deserialize)]
 pub struct GitHubAPIRepoTree {
     pub sha: String,

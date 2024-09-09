@@ -21,10 +21,17 @@ pub fn human_readable_size(bytes: usize) -> String {
     }
 }
 
-pub fn parse_header(headers: &HeaderMap, header_name: &str) -> AppResult<i64> {
+pub fn parse_header_num(headers: &HeaderMap, header_name: &str) -> AppResult<i64> {
     headers
         .get(header_name)
         .and_then(|val| val.to_str().ok())
         .and_then(|s| s.parse().ok())
+        .ok_or_else(|| AppError::Custom(format!("Failed to parse header: {}", header_name)))
+}
+
+pub fn parse_header<'a>(headers: &'a HeaderMap, header_name: &str) -> AppResult<&'a str> {
+    headers
+        .get(header_name)
+        .and_then(|val| val.to_str().ok())
         .ok_or_else(|| AppError::Custom(format!("Failed to parse header: {}", header_name)))
 }

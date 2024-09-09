@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use api::GitHubAPI;
-use api_models::{
-    GitHubAPIRepoLicense, GitHubAPIRepoOrganization, GitHubAPIRepoOwner, GitHubAPIRepoTree,
-};
+use api_models::{GitHubAPIRepoLicense, GitHubAPIRepoOrg, GitHubAPIRepoOwner, GitHubAPIRepoTree};
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter};
 
@@ -11,6 +9,7 @@ use crate::{commands::repo::AddRepoProgress, error::AppResult};
 
 pub mod api;
 pub mod api_models;
+pub mod models;
 
 async fn add_github_repo_owner(
     github_repo_id: i64,
@@ -38,12 +37,12 @@ async fn add_github_repo_owner(
 
 async fn add_github_repo_org(
     github_repo_id: i64,
-    org: Option<GitHubAPIRepoOrganization>,
+    org: Option<GitHubAPIRepoOrg>,
     pool: &SqlitePool,
 ) -> AppResult<()> {
     if let Some(org) = org {
         let org_query = "
-            INSERT INTO github_repo_organization (
+            INSERT INTO github_repo_org (
                 github_repo_id, login, id, node_id, gravatar_id, type, site_admin
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -222,7 +221,7 @@ pub async fn add_github_repo(
     let query = "
         INSERT INTO github_repo (
             repo_id, id, node_id, name, full_name, private, description, fork, created_at,
-            updated_at, homepage, size, stargazers_count, watchers_count, language,
+            updated_at, pushed_at, homepage, size, stargazers_count, watchers_count, language,
             has_issues, has_projects, has_downloads, has_wiki, has_pages, has_discussions,
             forks_count, archived, disabled, open_issues_count, allow_forking, is_template,
             web_commit_signoff_required, visibility, forks, open_issues, watchers,
@@ -248,6 +247,7 @@ pub async fn add_github_repo(
         .bind(github_repo.fork)
         .bind(github_repo.created_at)
         .bind(github_repo.updated_at)
+        .bind(github_repo.pushed_at)
         .bind(github_repo.homepage)
         .bind(github_repo.size)
         .bind(github_repo.stargazers_count)
@@ -278,7 +278,7 @@ pub async fn add_github_repo(
         .last_insert_rowid();
 
     add_github_repo_owner(github_repo_id, github_repo.owner, pool).await?;
-    add_github_repo_org(github_repo_id, github_repo.organization, pool).await?;
+    add_github_repo_org(github_repo_id, github_repo.org, pool).await?;
     add_github_repo_license(github_repo_id, github_repo.license, pool).await?;
     add_github_repo_topics(github_repo_id, github_repo.topics, pool).await?;
     add_github_repo_custom_properties(github_repo_id, github_repo.custom_properties, pool).await?;

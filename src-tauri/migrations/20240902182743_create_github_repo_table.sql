@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS github_repo (
     fork BOOLEAN NOT NULL CHECK (fork IN (0, 1)),
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    pushed_at DATETIME NOT NULL,
     homepage TEXT,
     size INTEGER NOT NULL,
     stargazers_count INTEGER NOT NULL,
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS github_repo (
 );
 
 -- Create an index on the 'repo_id' column
-CREATE INDEX IF NOT EXISTS idx_github_repo_repo_id on github_repo (repo_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_github_repo_repo_id on github_repo (repo_id);
 
 
 
@@ -66,8 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_github_repo_owner_github_repo_id on github_repo_o
 
 
 
--- Create the 'github_repo_organization' table.
-CREATE TABLE IF NOT EXISTS github_repo_organization (
+-- Create the 'github_repo_org' table.
+CREATE TABLE IF NOT EXISTS github_repo_org (
     github_repo_id INTEGER NOT NULL,
     login TEXT NOT NULL,
     id INTEGER PRIMARY KEY NOT NULL,
@@ -82,13 +83,12 @@ CREATE TABLE IF NOT EXISTS github_repo_organization (
 );
 
 -- Create an index on the 'github_repo_id' column
-CREATE INDEX IF NOT EXISTS idx_github_repo_organization_github_repo_id on github_repo_organization (github_repo_id);
+CREATE INDEX IF NOT EXISTS idx_github_repo_org_github_repo_id on github_repo_org (github_repo_id);
 
 
 
 -- Create the 'github_repo_topic' table.
 CREATE TABLE IF NOT EXISTS github_repo_topic (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     github_repo_id INTEGER NOT NULL,
     topic TEXT NOT NULL,
     FOREIGN KEY (github_repo_id)

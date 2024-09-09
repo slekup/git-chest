@@ -11,44 +11,9 @@ use crate::{
     error::{AppError, AppResult},
     events::watch_repo_events,
     platforms::github::add_github_repo,
-    repo::Repo,
+    repo::{Platform, Repo},
     state::AppState,
 };
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Platform {
-    Bitbucket,
-    GitHub,
-    GitLab,
-    Gitea,
-}
-
-impl FromStr for Platform {
-    type Err = AppError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "bitbucket" => Ok(Platform::Bitbucket),
-            "github" => Ok(Platform::GitHub),
-            "gitlab" => Ok(Platform::GitLab),
-            "gitea" => Ok(Platform::Gitea),
-            _ => AppError::new("Unknown platform"),
-        }
-    }
-}
-
-impl std::fmt::Display for Platform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            serde_json::to_string(self)
-                .unwrap()
-                .as_str()
-                .trim_matches('"')
-        )
-    }
-}
 
 #[derive(Deserialize)]
 pub struct AddRepoData {
@@ -162,8 +127,47 @@ pub async fn add_repo(
     Ok(repo_id)
 }
 
+#[derive(Serialize)]
+pub struct RepoPreview {
+    id: i64,
+    platform: String,
+    user: String,
+    repo: String,
+    clone_data: bool,
+    auto_sync: u8,
+    updated_at: String,
+}
+
 #[tauri::command(rename_all = "snake_case")]
-pub async fn get_repo_list(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
+pub async fn get_repo_list(state: State<'_, AppState>) -> AppResult<Vec<RepoPreview>> {
+    let start = Instant::now();
+    let state = state.lock().await;
+
+    let query = "SELECT * FROM repo LIMIT 100";
+    let repos = sqlx::query_as::<_, Repo>(query)
+        .fetch_all(&state.pool)
+        .await?;
+
+    let repos = repos
+        .into_iter()
+        .map(|r| RepoPreview {
+            id: r.id,
+            platform: r.platform,
+            user: r.user,
+            repo: r.repo,
+            clone_data: r.clone_data,
+            auto_sync: r.auto_sync,
+            updated_at: r.updated_at,
+        })
+        .collect();
+
+    info!("fetched repos in {:?}", start.elapsed());
+
+    Ok(repos)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn get_repo(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
     let start = Instant::now();
     let state = state.lock().await;
 

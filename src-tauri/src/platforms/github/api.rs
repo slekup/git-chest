@@ -7,12 +7,12 @@ use crate::{
     error::{AppError, AppResult},
     platforms::github::api_models::GitHubAPIRepoTree,
     utils::{
-        data::parse_header,
+        data::{parse_header, parse_header_num},
         rate_limit::{check_rate_limit, update_rate_limit},
     },
 };
 
-use super::api_models::{GitHubAPIRepo, GitHubAPIRepoReadMe};
+use super::api_models::GitHubAPIRepo;
 
 pub struct GitHubAPI {
     client: reqwest::Client,
@@ -30,15 +30,17 @@ impl GitHubAPI {
     }
 
     pub async fn update_rate_limit(&self, headers: &HeaderMap, pool: &SqlitePool) -> AppResult<()> {
-        let limit = parse_header(headers, "X-RateLimit-Limit").unwrap_or(0);
-        let remaining = parse_header(headers, "X-RateLimit-Remaining").unwrap_or(0);
-        let reset = parse_header(headers, "X-RateLimit-Reset").unwrap_or(0);
-        update_rate_limit("github", limit, remaining, reset, pool).await?;
+        let max = parse_header_num(headers, "X-RateLimit-Limit").unwrap_or(0);
+        let remaining = parse_header_num(headers, "X-RateLimit-Remaining").unwrap_or(0);
+        let used = parse_header_num(headers, "X-RateLimit-Used").unwrap_or(0);
+        let reset_at = parse_header_num(headers, "X-RateLimit-Reset").unwrap_or(0);
+        let resource = parse_header(headers, "X-RateLimit-Resource").unwrap();
+        update_rate_limit("github", max, remaining, used, reset_at, resource, pool).await?;
         Ok(())
     }
 
-    async fn check_rate_limit(&self, pool: &SqlitePool) -> AppResult<()> {
-        check_rate_limit("github", pool).await
+    async fn check_rate_limit(&self, resource: &str, pool: &SqlitePool) -> AppResult<()> {
+        check_rate_limit("github", resource, pool).await
     }
 
     /// Fetch a GitHub repository.
@@ -48,7 +50,7 @@ impl GitHubAPI {
         repo: &str,
         pool: &SqlitePool,
     ) -> AppResult<GitHubAPIRepo> {
-        self.check_rate_limit(pool).await?;
+        self.check_rate_limit("core", pool).await?;
         let start = Instant::now();
 
         let res = self
@@ -82,7 +84,7 @@ impl GitHubAPI {
         branch: &str,
         pool: &SqlitePool,
     ) -> AppResult<GitHubAPIRepoTree> {
-        self.check_rate_limit(pool).await?;
+        self.check_rate_limit("core", pool).await?;
         let start = Instant::now();
 
         let res = self
