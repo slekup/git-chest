@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use serde::Serialize;
 use sqlx::prelude::FromRow;
 
 /// Excluding `repo_id`.
 #[derive(Serialize, FromRow)]
 pub struct GitHubRepo {
-    id: i32,
+    pub id: i32,
     node_id: String,
     name: String,
     full_name: String,
@@ -67,12 +65,6 @@ pub struct GitHubRepoOrg {
 
 /// Excluding `github_repo_id`.
 #[derive(Serialize, FromRow)]
-pub struct GitHubRepoTopic {
-    topic: String,
-}
-
-/// Excluding `github_repo_id`.
-#[derive(Serialize, FromRow)]
 pub struct GitHubRepoLicense {
     key: String,
     name: String,
@@ -89,10 +81,10 @@ pub struct GitHubRepoCustomProperty {
 
 #[derive(Serialize)]
 pub struct GitHubRepoData {
-    repo: GitHubRepo,
-    owner: GitHubRepoOwner,
-    org: Option<GitHubRepoOrg>,
-    topics: Vec<String>,
-    license: GitHubRepoLicense,
-    custom_properties: HashMap<String, String>,
+    pub repo: GitHubRepo,
+    pub owner: GitHubRepoOwner,
+    pub org: Option<GitHubRepoOrg>,
+    pub topics: Vec<String>,
+    pub license: GitHubRepoLicense,
+    pub custom_properties: Vec<GitHubRepoCustomProperty>,
 }

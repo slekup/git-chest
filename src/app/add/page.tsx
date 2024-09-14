@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { redirect, useSearchParams } from "next/navigation";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import Image from "next/image";
 import { useDispatch } from "react-redux";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import clsx from "clsx";
 
 import { HiOutlineEyeOff, HiX, HiCheck } from "react-icons/hi";
 import { HiOutlineEye, HiEye, HiOutlineCog6Tooth } from "react-icons/hi2";
@@ -33,8 +35,6 @@ import {
   SwitchBox,
   Modal,
 } from "@components";
-import { listen } from "@tauri-apps/api/event";
-import clsx from "clsx";
 
 interface Directory {
   id: number;
@@ -80,23 +80,29 @@ interface AddRepoForm {
 
 interface AddRepoProgress {
   progress: number;
-  step: string;
+  task_id: string;
+  step: number;
+  total_steps: number;
 }
 
-const repoProgressStep: { [key: string]: any } = {
+const repoProgressTaskDescription: { [key: string]: any } = {
   insert_basic_info: "Add basic information to database",
   fetch_metadata: "Fetch metadata from platform",
   insert_metadata: "Add metadata to database",
   fetch_tree: "Fetch tree from platform",
   insert_tree: "Add tree contents to database (potentially slow)",
+  fetch_readme: "Fetch README from platform",
+  insert_readme: "Add README to database",
 };
 
-const repoProgressSteps = [
+const repoProgressTaskIds = [
   "insert_basic_info",
   "fetch_metadata",
   "insert_metadata",
   "fetch_tree",
   "insert_tree",
+  "fetch_readme",
+  "insert_readme",
 ];
 
 export default function Add() {
@@ -105,9 +111,7 @@ export default function Add() {
   const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
   const [fromURL, setFromURL] = useState<string>("");
   const [addingRepo, setAddingRepo] = useState<boolean>(false);
-  const [addRepoProgress, setAddRepoProgress] = useState<
-    AddRepoProgress | undefined
-  >();
+  const [addRepoProgress, setAddRepoProgress] = useState<AddRepoProgress[]>([]);
 
   const dispatch = useDispatch();
   const params = useSearchParams();
@@ -137,10 +141,31 @@ export default function Add() {
   }, [directoryId]);
 
   useEffect(() => {
-    listen<AddRepoProgress>("add-repo-progress", (event) => {
-      setAddRepoProgress(event.payload);
+    type RemoveListenerBlock = () => void;
+    let removeListener: RemoveListenerBlock | undefined;
+
+    console.log("starting to listen");
+
+    const setUpListener = async () => {
+      removeListener = await listen<AddRepoProgress>(
+        "add-repo-progress",
+        (event) => {
+          let newAddRepoProgress = addRepoProgress.filter(
+            (task) => task.task_id !== event.payload.task_id,
+          );
+          setAddRepoProgress([...newAddRepoProgress, event.payload]);
+        },
+      );
+    };
+
+    setUpListener().catch((error) => {
+      console.error(`Could not set up window event listener. ${error}`);
     });
-  }, []);
+
+    return () => {
+      removeListener?.();
+    };
+  }, [addRepoProgress]);
 
   const fillFail = (msg: string) => {
     dispatch(
@@ -218,15 +243,16 @@ export default function Add() {
         watch_events: data.watch_events ?? [],
       },
     })
-      .then((_) => {
+      .then((id) => {
+        console.log(id);
         setAddingRepo(false);
         dispatch({
           title: "Successfully added repository.",
           description: `User: ${data.user}\nRepository:${data.repo}`,
           type: ToastType.Success,
         });
-
         /// TODO: Redirect to the repo page.
+        redirect("/");
       })
       .catch((err) => {
         setAddingRepo(false);
@@ -237,6 +263,7 @@ export default function Add() {
             type: ToastType.Error,
           }),
         );
+        console.error(err);
       });
   };
 
@@ -244,8 +271,8 @@ export default function Add() {
     addRepoProgress ? (
       <main className="max-w-3xl mx-auto my-10 p-5">
         <div className="bg-bg-secondary border border-border p-5 rounded-lg">
-          {repoProgressSteps.map((step, i) =>
-            ((current_i) => (
+          {repoProgressTaskIds.map((task_id, i) =>
+            (({ current_i, task }) => (
               <div
                 key={i}
                 className={clsx(
@@ -255,36 +282,47 @@ export default function Add() {
               >
                 <HiCheck className={clsx("h-7 w-7 text-success")} />
                 <div className="ml-5 w-full">
-                  <p className="text-fg-secondary">
-                    {repoProgressStep[step]}{" "}
-                    <span className="ml-1 text-sm text-fg-tertiary float-end">
-                      {current_i > i
-                        ? "100%"
-                        : current_i === i
-                          ? `${addRepoProgress.progress}%`
-                          : "0%"}
-                    </span>
-                  </p>
+                  <div className="flex justify-between">
+                    <p className="text-fg-secondary">
+                      {repoProgressTaskDescription[current_i]}
+                      <div className="flex ml-1 text-sm">
+                        {task?.step && task?.total_steps && (
+                          <span className="text-base text-fg-secondary mr-2">
+                            {task.step}/{task.total_steps}
+                          </span>
+                        )}
+                        <span className="text-fg-tertiary">
+                          {current_i > i
+                            ? "completed"
+                            : current_i === i
+                              ? task?.progress
+                              : "pending"}
+                        </span>
+                      </div>
+                    </p>
+                  </div>
                   <div className="block w-full mt-1 h-1 rounded-lg bg-bg-tertiary">
                     <div
-                      className="block w-1/2 h-full rounded-lg bg-success transition-[width] duration-500"
+                      className="block w-1/2 h-full rounded-lg bg-gradient-to-r from-success-active to-success transition-[width] duration-500"
                       style={{
                         width:
                           current_i > i
                             ? "100%"
                             : current_i === i
-                              ? `${addRepoProgress.progress}%`
+                              ? `${task?.task_id ?? 0}%`
                               : "0%",
                       }}
                     ></div>
                   </div>
                 </div>
               </div>
-            ))(
-              repoProgressSteps.findIndex(
-                (value) => value == addRepoProgress.step,
+            ))({
+              current_i: repoProgressTaskIds.findIndex(
+                (id) =>
+                  id == addRepoProgress[addRepoProgress.length - 1].task_id,
               ),
-            ),
+              task: addRepoProgress.find((task) => task.task_id == task_id),
+            }),
           )}
         </div>
       </main>

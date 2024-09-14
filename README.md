@@ -5,11 +5,11 @@ Git Chest is a desktop application that allows you to own a local database of re
 ## Features
 
 - **Archiving:** Keep historical copies of remote repositories, including platform-specific data.
-- **Updates:** Watch any user, organization, and repository events.
-- **Analysis:** Run your own queries on repositories using Sqlite without restriction.
+- **Updates:** Watch for any user, organization, and repository events.
 - **Mirroring:** Automatically sync changes from remote repositories to your local database.
-- **Authentication:** Increase rate limits by using your own auth tokens.
 - **Browsing:** Browse repository READMEs, file trees, and other metadata offline without needing to clone the entire repository.
+- **Authentication:** Increase rate limits by using your own auth tokens.
+- **Analysis:** Run your own queries on repositories using Sqlite without restriction.
 
 ## Supported Git Hosts
 

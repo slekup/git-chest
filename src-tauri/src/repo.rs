@@ -3,7 +3,7 @@ use std::str::FromStr;
 use serde::Serialize;
 use sqlx::prelude::FromRow;
 
-use crate::{error::AppError, platforms::github::models::GitHubRepo};
+use crate::{error::AppError, platforms::github::models::GitHubRepoData};
 
 /// Basic repository data.
 #[derive(Serialize, FromRow)]
@@ -31,12 +31,12 @@ pub enum Platform {
 impl FromStr for Platform {
     type Err = AppError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s {
             "bitbucket" => Ok(Platform::Bitbucket),
             "github" => Ok(Platform::GitHub),
             "gitlab" => Ok(Platform::GitLab),
             "gitea" => Ok(Platform::Gitea),
-            _ => AppError::new("Unknown platform"),
+            _ => AppError::new("Invalid platform"),
         }
     }
 }
@@ -56,15 +56,17 @@ impl std::fmt::Display for Platform {
 
 #[derive(Serialize)]
 #[serde(tag = "kind", content = "data")]
+#[allow(clippy::large_enum_variant)]
 pub enum PlatformRepoData {
-    GitHub(GitHubRepo),
     // TODO: Add other platform variants.
+    Bitbucket,
+    GitHub(GitHubRepoData),
+    GitLab,
+    Gitea,
 }
 
-#[derive(FromRow)]
+#[derive(Serialize, FromRow)]
 pub struct RepoTreeItem {
-    repo_id: i64,
-    parent_id: Option<i64>,
     path: String,
     mode: String,
     r#type: String,
@@ -72,15 +74,8 @@ pub struct RepoTreeItem {
     size: Option<i32>,
 }
 
-#[derive(FromRow)]
+#[derive(Serialize, FromRow)]
 pub struct RepoTree {
-    repo_id: i64,
     sha: String,
-    tree: Vec<RepoTreeItem>,
     truncated: bool,
-}
-
-pub struct RepoReadme {
-    repo_id: i64,
-    content: String,
 }

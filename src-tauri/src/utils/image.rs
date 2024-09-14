@@ -103,7 +103,7 @@ impl TryFrom<PathBuf> for AppImage {
         let ext = value.extension().unwrap().to_string_lossy().to_string();
         if !Self::valid_ext(&ext) {
             let ext_str = VALID_IMAGE_EXTENSIONS.join(", ");
-            return AppError::new(&format!("Invalid image type, must be one of: {}.", ext_str));
+            return AppError::new(&format!("Invalid image type, must be one of: {ext_str}."));
         }
 
         let id = Uuid::new_v4().to_string();
@@ -142,7 +142,7 @@ impl TryFrom<(Vec<u8>, &String)> for AppImage {
         let ext = value.1;
         if !Self::valid_ext(ext) {
             let ext_str = VALID_IMAGE_EXTENSIONS.join(", ");
-            return AppError::new(&format!("Invalid image type, must be one of: {}.", ext_str));
+            return AppError::new(&format!("Invalid image type, must be one of: {ext_str}."));
         }
 
         let id = Uuid::new_v4().to_string();

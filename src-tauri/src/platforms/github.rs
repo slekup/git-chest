@@ -2,10 +2,15 @@ use std::collections::HashMap;
 
 use api::GitHubAPI;
 use api_models::{GitHubAPIRepoLicense, GitHubAPIRepoOrg, GitHubAPIRepoOwner, GitHubAPIRepoTree};
+use models::{
+    GitHubRepo, GitHubRepoCustomProperty, GitHubRepoData, GitHubRepoLicense, GitHubRepoOrg,
+    GitHubRepoOwner,
+};
 use sqlx::SqlitePool;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tracing::error;
 
-use crate::{commands::repo::AddRepoProgress, error::AppResult};
+use crate::{commands::repo::AddRepoProgress, error::AppResult, utils::data::progress_percentage};
 
 pub mod api;
 pub mod api_models;
@@ -17,7 +22,7 @@ async fn add_github_repo_owner(
     pool: &SqlitePool,
 ) -> AppResult<()> {
     let org_query = "
-        INSERT INTO github_repo_owner (
+        INSERT OR REPLACE INTO github_repo_owner (
             github_repo_id, login, id, node_id, gravatar_id, type, site_admin
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -31,7 +36,12 @@ async fn add_github_repo_owner(
         .bind(owner.r#type)
         .bind(owner.site_admin)
         .execute(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding GitHub repository owner to database"
+        })?;
+
     Ok(())
 }
 
@@ -42,7 +52,7 @@ async fn add_github_repo_org(
 ) -> AppResult<()> {
     if let Some(org) = org {
         let org_query = "
-            INSERT INTO github_repo_org (
+            INSERT OR REPLACE INTO github_repo_org (
                 github_repo_id, login, id, node_id, gravatar_id, type, site_admin
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -56,8 +66,13 @@ async fn add_github_repo_org(
             .bind(org.r#type)
             .bind(org.site_admin)
             .execute(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error adding GitHub repository organization to database"
+            })?;
     }
+
     Ok(())
 }
 
@@ -67,7 +82,7 @@ async fn add_github_repo_license(
     pool: &SqlitePool,
 ) -> AppResult<()> {
     let license_query = "
-        INSERT INTO github_repo_license (
+        INSERT OR REPLACE INTO github_repo_license (
             github_repo_id, key, name, spdx_id, node_id
         )
         VALUES (?, ?, ?, ?, ?)
@@ -79,7 +94,12 @@ async fn add_github_repo_license(
         .bind(license.spdx_id)
         .bind(license.node_id)
         .execute(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding GitHub repository license to database"
+        })?;
+
     Ok(())
 }
 
@@ -99,30 +119,42 @@ async fn add_github_repo_topics(
             .bind(github_repo_id)
             .bind(topic)
             .execute(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error adding GitHub repository topic to database"
+            })?;
     }
+
     Ok(())
 }
 
 async fn add_github_repo_custom_properties(
     github_repo_id: i64,
-    custom_properties: HashMap<String, String>,
+    custom_properties: Option<HashMap<String, String>>,
     pool: &SqlitePool,
 ) -> AppResult<()> {
-    for custom_property in custom_properties {
-        let custom_property_query = "
+    if let Some(custom_properties) = custom_properties {
+        for custom_property in custom_properties {
+            let custom_property_query = "
             INSERT INTO github_repo_custom_property (
                 github_repo_id, key, value
             )
             VALUES (?, ?, ?)
         ";
-        sqlx::query(custom_property_query)
-            .bind(github_repo_id)
-            .bind(custom_property.0)
-            .bind(custom_property.1)
-            .execute(pool)
-            .await?;
+            sqlx::query(custom_property_query)
+                .bind(github_repo_id)
+                .bind(custom_property.0)
+                .bind(custom_property.1)
+                .execute(pool)
+                .await
+                .map_err(|e| {
+                    error!("{:?}", e);
+                    "Error adding GitHub repository custom property to database"
+                })?;
+        }
     }
+
     Ok(())
 }
 
@@ -143,25 +175,26 @@ async fn add_github_repo_tree(
         .bind(tree.sha)
         .bind(tree.truncated)
         .execute(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding GitHub repository tree to database"
+        })?;
 
     let mut tree_ids: HashMap<&str, i64> = HashMap::new();
     let total_tree_items = tree.tree.len();
-    let progress_interval = if total_tree_items > 100 {
-        total_tree_items / 100
-    } else {
-        1
-    };
 
-    let mut processed_items = 0;
-
-    for item in tree.tree.iter() {
+    for (i, item) in tree.tree.iter().enumerate() {
         let mut parent_id: Option<i64> = None;
         let path_parts: Vec<&str> = item.path.split("/").collect();
         // If a parent is found in the path.
         if path_parts.len() >= 2 {
             let parent_name = &path_parts[path_parts.len() - 2];
             parent_id = Some(*tree_ids.get(*parent_name).unwrap());
+        }
+
+        if !["tree".to_string(), "blob".to_string()].contains(&item.r#type) {
+            error!("{:?}", &item.r#type);
         }
 
         let item_query = "
@@ -180,7 +213,11 @@ async fn add_github_repo_tree(
             .bind(&item.sha)
             .bind(item.size)
             .execute(pool)
-            .await?
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error adding GitHub repository tree item to database"
+            })?
             .last_insert_rowid();
 
         if item.r#type == "tree" {
@@ -188,16 +225,8 @@ async fn add_github_repo_tree(
             tree_ids.insert(*item_name, item_id);
         }
 
-        processed_items += 1;
-        let progress = ((processed_items as f64 / total_tree_items as f64) * 100.0).round() as u8;
-
-        if progress % progress_interval as u8 == 0 || processed_items == total_tree_items {
-            app.emit(
-                "add-repo-progress",
-                AddRepoProgress::from(progress, "insert_tree"),
-            )
-            .unwrap();
-        }
+        let progress = progress_percentage(i, total_tree_items);
+        AddRepoProgress::InsertTree.send(progress, (i + 1) as u64, total_tree_items as u64, app);
     }
 
     Ok(())
@@ -211,13 +240,11 @@ pub async fn add_github_repo(
     pool: &SqlitePool,
     app: &AppHandle,
 ) -> AppResult<()> {
+    AddRepoProgress::FetchMetadata.send(0, 0, 1, app);
     let github_repo = api.fetch_repo(user, repo, pool).await?;
-    app.emit(
-        "add-repo-progress",
-        AddRepoProgress::from(100, "fetch_metadata"),
-    )
-    .unwrap();
+    AddRepoProgress::FetchMetadata.send(100, 1, 1, app);
 
+    AddRepoProgress::InsertMetadata.send(0, 0, 1, app);
     let query = "
         INSERT INTO github_repo (
             repo_id, id, node_id, name, full_name, private, description, fork, created_at,
@@ -229,7 +256,7 @@ pub async fn add_github_repo(
         )
         VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
@@ -274,58 +301,116 @@ pub async fn add_github_repo(
         .bind(github_repo.network_count)
         .bind(github_repo.subscribers_count)
         .execute(pool)
-        .await?
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding GitHub repository from database"
+        })?
         .last_insert_rowid();
-
+    AddRepoProgress::InsertMetadata.send(17, 1, 6, app);
     add_github_repo_owner(github_repo_id, github_repo.owner, pool).await?;
+    AddRepoProgress::InsertMetadata.send(34, 3, 6, app);
     add_github_repo_org(github_repo_id, github_repo.org, pool).await?;
     add_github_repo_license(github_repo_id, github_repo.license, pool).await?;
+    AddRepoProgress::InsertMetadata.send(51, 3, 6, app);
+    AddRepoProgress::InsertMetadata.send(68, 4, 6, app);
     add_github_repo_topics(github_repo_id, github_repo.topics, pool).await?;
+    AddRepoProgress::InsertMetadata.send(85, 5, 6, app);
     add_github_repo_custom_properties(github_repo_id, github_repo.custom_properties, pool).await?;
+    AddRepoProgress::InsertMetadata.send(100, 6, 6, app);
 
-    app.emit(
-        "add-repo-progress",
-        AddRepoProgress::from(100, "insert_metadata"),
-    )
-    .unwrap();
-
+    AddRepoProgress::FetchTree.send(0, 0, 1, app);
     let github_repo_tree = api
         .fetch_repo_tree(user, repo, &github_repo.default_branch, pool)
         .await?;
-
-    app.emit(
-        "add-repo-progress",
-        AddRepoProgress::from(100, "fetch_tree"),
-    )
-    .unwrap();
+    AddRepoProgress::FetchTree.send(100, 1, 1, app);
 
     add_github_repo_tree(repo_id, github_repo_tree, pool, app).await?;
 
+    AddRepoProgress::FetchReadme.send(0, 0, 1, app);
+    AddRepoProgress::InsertReadme.send(100, 0, 1, app);
     let filename = sqlx::query_scalar::<_, String>(
         "SELECT path
          FROM repo_tree_item
          WHERE path LIKE '%README%' OR path LIKE '%README.md%'",
     )
     .fetch_optional(pool)
-    .await?;
+    .await
+    .map_err(|e| {
+        error!("{:?}", e);
+        "Error looking for optional repository tree item from database"
+    })?;
 
     if let Some(filename) = filename {
         let readme_content = api
-            .fetch_repo_readme(user, repo, &github_repo.default_branch, &filename, pool)
+            .fetch_repo_readme(user, repo, &github_repo.default_branch, &filename)
             .await?;
+        AddRepoProgress::FetchReadme.send(100, 1, 1, app);
+
+        AddRepoProgress::InsertReadme.send(100, 0, 1, app);
         let readme_query = "INSERT INTO repo_readme (repo_id, content) VALUES (?, ?)";
         sqlx::query(readme_query)
             .bind(repo_id)
             .bind(readme_content)
             .execute(pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error adding repository README to database"
+            })?;
+        AddRepoProgress::InsertReadme.send(100, 1, 1, app);
+    } else {
+        AddRepoProgress::FetchReadme.send(100, 1, 1, app);
+        AddRepoProgress::InsertReadme.send(100, 1, 1, app);
     }
 
-    app.emit(
-        "add-repo-progress",
-        AddRepoProgress::from(100, "fetch_readme"),
-    )
-    .unwrap();
-
     Ok(())
+}
+
+pub async fn get_github_repo(repo_id: i64, pool: &SqlitePool) -> AppResult<GitHubRepoData> {
+    let query = "SELECT * FROM github_repo WHERE repo = ?";
+    let github_repo = sqlx::query_as::<_, GitHubRepo>(query)
+        .bind(repo_id)
+        .fetch_one(pool)
+        .await?;
+
+    let owner_query = "SELECT * FROM github_repo_owner WHERE github_repo_id = ?";
+    let owner = sqlx::query_as::<_, GitHubRepoOwner>(owner_query)
+        .bind(github_repo.id)
+        .fetch_one(pool)
+        .await?;
+
+    let org_query = "SELECT * FROM github_repo_org WHERE github_repo_id = ?";
+    let org = sqlx::query_as::<_, GitHubRepoOrg>(org_query)
+        .bind(github_repo.id)
+        .fetch_optional(pool)
+        .await?;
+
+    let topics_query = "SELECT topic FROM github_repo_topic WHERE github_repo_id = ?";
+    let topics = sqlx::query_scalar::<_, String>(topics_query)
+        .bind(github_repo.id)
+        .fetch_all(pool)
+        .await?;
+
+    let license_query = "SELECT * FROM github_repo_license WHERE github_repo_id = ?";
+    let license = sqlx::query_as::<_, GitHubRepoLicense>(license_query)
+        .bind(github_repo.id)
+        .fetch_one(pool)
+        .await?;
+
+    let custom_properties_query =
+        "SELECT * FROM github_repo_custom_property WHERE github_repo_id = ?";
+    let custom_properties = sqlx::query_as::<_, GitHubRepoCustomProperty>(custom_properties_query)
+        .bind(github_repo.id)
+        .fetch_all(pool)
+        .await?;
+
+    Ok(GitHubRepoData {
+        repo: github_repo,
+        owner,
+        org,
+        topics,
+        license,
+        custom_properties,
+    })
 }

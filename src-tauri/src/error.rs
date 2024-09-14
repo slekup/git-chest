@@ -1,21 +1,23 @@
+use tracing::error;
+
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
-    #[error("Anyhow Error: {0}")]
+    #[error("Anyhow: {0}")]
     Anyhow(#[from] anyhow::Error),
 
-    #[error("IO Error: {0}")]
+    #[error("IO: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("SQLX Error: {0}")]
+    #[error("SQLX: {0}")]
     Sqlx(#[from] sqlx::Error),
 
-    #[error("Serde Error: {0}")]
+    #[error("Serde: {0}")]
     Serde(#[from] serde_json::Error),
 
-    #[error("Serde Error: {0}")]
+    #[error("Reqwest: {0}")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("Error: {0}")]
+    #[error("App: {0}")]
     Custom(String),
 }
 
@@ -25,12 +27,17 @@ impl AppError {
     }
 }
 
+impl From<&str> for AppError {
+    fn from(value: &str) -> Self {
+        AppError::Custom(value.to_string())
+    }
+}
+
 impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
-        // tracing::error!("{}", self.to_string());
         serializer.serialize_str(self.to_string().as_ref())
     }
 }

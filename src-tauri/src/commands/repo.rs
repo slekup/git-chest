@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter, State};
 use tokio::time::Instant;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     error::{AppError, AppResult},
     events::watch_repo_events,
-    platforms::github::add_github_repo,
-    repo::{Platform, Repo},
+    platforms::github::{add_github_repo, get_github_repo},
+    repo::{Platform, PlatformRepoData, Repo, RepoTree, RepoTreeItem},
     state::AppState,
 };
 
@@ -33,22 +33,46 @@ async fn check_repo_exists(user: &str, repo: &str, pool: &SqlitePool) -> AppResu
         .bind(user)
         .bind(repo)
         .fetch_optional(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error checking if repository exists in database"
+        })?;
     Ok(exists.is_some())
 }
 
 #[derive(Serialize, Clone)]
-pub struct AddRepoProgress {
-    progress: u8,
-    step: String,
+struct AddRepoProgressData {
+    percentage: u8,
+    task_id: AddRepoProgress,
+    step: u64,
+    total_steps: u64,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AddRepoProgress {
+    InsertBasicInfo,
+    FetchMetadata,
+    InsertMetadata,
+    FetchTree,
+    InsertTree,
+    FetchReadme,
+    InsertReadme,
 }
 
 impl AddRepoProgress {
-    pub fn from(progress: u8, step: &str) -> Self {
-        Self {
-            progress,
-            step: step.to_string(),
-        }
+    pub fn send(self, percentage: u8, step: u64, total_steps: u64, app: &AppHandle) {
+        app.emit(
+            "add-repo-progress",
+            AddRepoProgressData {
+                percentage,
+                step,
+                total_steps,
+                task_id: self,
+            },
+        )
+        .unwrap();
     }
 }
 
@@ -65,6 +89,7 @@ pub async fn add_repo(
         return AppError::new("Repository already exists.");
     }
 
+    AddRepoProgress::InsertBasicInfo.send(0, 0, 1, &app);
     let query =
         "INSERT INTO repo (platform, user, repo, clone_data, auto_sync, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
     let repo_id = sqlx::query(query)
@@ -76,14 +101,13 @@ pub async fn add_repo(
         .bind(Utc::now().to_rfc3339())
         .bind(Utc::now().to_rfc3339())
         .execute(&state.pool)
-        .await?
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding repository data into database"
+        })?
         .last_insert_rowid();
-
-    app.emit(
-        "add-repo-progress",
-        AddRepoProgress::from(100, "insert_basic_info"),
-    )
-    .unwrap();
+    AddRepoProgress::InsertBasicInfo.send(100, 1, 1, &app);
 
     match Platform::from_str(&repo.platform)? {
         Platform::Bitbucket => {}
@@ -146,7 +170,11 @@ pub async fn get_repo_list(state: State<'_, AppState>) -> AppResult<Vec<RepoPrev
     let query = "SELECT * FROM repo LIMIT 100";
     let repos = sqlx::query_as::<_, Repo>(query)
         .fetch_all(&state.pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting repositories from database"
+        })?;
 
     let repos = repos
         .into_iter()
@@ -166,17 +194,90 @@ pub async fn get_repo_list(state: State<'_, AppState>) -> AppResult<Vec<RepoPrev
     Ok(repos)
 }
 
+#[derive(Serialize)]
+pub struct FullRepo {
+    repo: Repo,
+    platform_repo: PlatformRepoData,
+    tree: RepoTree,
+    tree_items: Vec<RepoTreeItem>,
+}
+
 #[tauri::command(rename_all = "snake_case")]
-pub async fn get_repo(state: State<'_, AppState>) -> AppResult<Vec<Repo>> {
+pub async fn get_repo(id: i64, state: State<'_, AppState>) -> AppResult<FullRepo> {
     let start = Instant::now();
     let state = state.lock().await;
 
-    let query = "SELECT * FROM repo LIMIT 100";
-    let repos = sqlx::query_as::<_, Repo>(query)
+    let query = "SELECT * FROM repo WHERE id = ?";
+    let repo = sqlx::query_as::<_, Repo>(query)
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting repository from database"
+        })?;
+
+    let platform_repo = match Platform::from_str(&repo.platform)? {
+        Platform::Bitbucket => PlatformRepoData::Bitbucket,
+        Platform::GitHub => {
+            let a = get_github_repo(id, &state.pool).await?;
+            PlatformRepoData::GitHub(a)
+        }
+        Platform::GitLab => PlatformRepoData::GitLab,
+        Platform::Gitea => PlatformRepoData::Gitea,
+    };
+
+    let tree_query = "SELECT sha, truncated FROM repo_tree WHERE repo_id = ?";
+    let tree = sqlx::query_as(tree_query)
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting repository tree from database"
+        })?;
+
+    let tree_items_query = "SELECT * FROM repo_tree_item WHERE repo_id = ?";
+    let tree_items = sqlx::query_as::<_, RepoTreeItem>(tree_items_query)
+        .bind(id)
         .fetch_all(&state.pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting repository tree items from database"
+        })?;
 
-    info!("fetched repos in {:?}", start.elapsed());
+    info!(
+        "fetched full repo \"{}/{}\" in {:?}",
+        repo.user,
+        repo.repo,
+        start.elapsed()
+    );
 
-    Ok(repos)
+    Ok(FullRepo {
+        repo,
+        platform_repo,
+        tree,
+        tree_items,
+    })
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn remove_repo(id: i64, state: State<'_, AppState>) -> AppResult<()> {
+    let start = Instant::now();
+    let state = state.lock().await;
+
+    let query = "DELETE FROM repo WHERE id = ?";
+    sqlx::query(query)
+        .bind(id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error deleting repository from database"
+        })?;
+
+    info!("deleted repo \"{id}\" in {:?}", start.elapsed());
+
+    Ok(())
 }

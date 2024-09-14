@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::{prelude::FromRow, SqlitePool};
+use tracing::error;
 
 use crate::error::{AppError, AppResult};
 
@@ -20,7 +21,7 @@ impl RateLimit {
 
 async fn get_rate_limit(id: &str, resource: &str, pool: &SqlitePool) -> AppResult<RateLimit> {
     let rate_limit = sqlx::query_as::<_, RateLimit>(
-        "SELECT limit_value, remaining, reset_value FROM rate_limit WHERE id = ? AND resource = ?",
+        "SELECT max, remaining, used, reset_at, resource FROM rate_limit WHERE id = ? AND resource = ?",
     )
     .bind(id)
     .bind(resource)
@@ -37,7 +38,7 @@ pub async fn update_rate_limit(
     reset_at: i64,
     resource: &str,
     pool: &SqlitePool,
-) -> Result<(), sqlx::Error> {
+) -> AppResult<()> {
     let query =
         "INSERT OR REPLACE INTO rate_limit (id, max, remaining, used, reset_at, resource) VALUES (?, ?, ?, ?, ?, ?)";
     sqlx::query(query)
@@ -48,7 +49,11 @@ pub async fn update_rate_limit(
         .bind(reset_at)
         .bind(resource)
         .execute(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error updating rate limit in database"
+        })?;
     Ok(())
 }
 
@@ -56,9 +61,9 @@ pub async fn check_rate_limit(id: &str, resource: &str, pool: &SqlitePool) -> Ap
     let rate_limit = get_rate_limit(id, resource, pool).await;
 
     if let Ok(rate_limit) = rate_limit {
-        let reset_time = rate_limit.to_reset_datetime();
+        let reset_at = rate_limit.to_reset_datetime();
         let now = Utc::now();
-        if rate_limit.remaining <= 0 && reset_time > now {
+        if rate_limit.remaining <= 0 && reset_at > now {
             return AppError::new("rate limit exceeded");
         }
     }

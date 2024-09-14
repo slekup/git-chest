@@ -3,5 +3,10 @@
   "identifier": "main-capability",
   "description": "Capability for the main window",
   "windows": ["main"],
-  "permissions": ["shell:allow-open", "dialog:default"]
+  "permissions": [
+    "shell:allow-open",
+    "dialog:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen"
+  ]
 }

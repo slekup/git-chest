@@ -69,7 +69,7 @@ pub struct GitHubAPIRepo {
     pub open_issues: i32,
     pub watchers: i32,
     pub default_branch: String,
-    pub custom_properties: HashMap<String, String>,
+    pub custom_properties: Option<HashMap<String, String>>,
     pub org: Option<GitHubAPIRepoOrg>,
     pub network_count: i32,
     pub subscribers_count: i32,

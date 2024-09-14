@@ -1,13 +1,13 @@
 use sqlx::SqlitePool;
 use tauri::http::HeaderMap;
 use tokio::time::Instant;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::{
     error::{AppError, AppResult},
     platforms::github::api_models::GitHubAPIRepoTree,
     utils::{
-        data::{parse_header, parse_header_num},
+        data::{parse_body, parse_header, parse_header_num},
         rate_limit::{check_rate_limit, update_rate_limit},
     },
 };
@@ -55,26 +55,30 @@ impl GitHubAPI {
 
         let res = self
             .client
-            .get(format!("{}/repos/{}/{}", self.base_url, user, repo))
+            .get(format!("{}/repos/{user}/{repo}", self.base_url))
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "Git Chest")
             .send()
-            .await?;
-
-        info!("Status: {}", &res.status());
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error fetching repository from GitHub API"
+            })?;
 
         if let Err(error) = res.error_for_status_ref() {
-            tracing::error!("{}", res.text().await?);
+            tracing::error!("{:?}", res.text().await?);
             return AppError::new(&error.to_string());
         }
 
         self.update_rate_limit(res.headers(), pool).await?;
 
-        let data = res.json::<GitHubAPIRepo>().await?;
+        let body = res.text().await?;
+        let json_body: GitHubAPIRepo =
+            parse_body(&body, "Error parsing repository from GitHub API")?;
 
         info!("fetching github repo took {:?}", start.elapsed());
 
-        Ok(data)
+        Ok(json_body)
     }
 
     pub async fn fetch_repo_tree(
@@ -90,17 +94,24 @@ impl GitHubAPI {
         let res = self
             .client
             .get(format!(
-                "{}/repos/{}/{}/git/trees/{}?recursive=true",
-                self.base_url, user, repo, branch
+                "{}/repos/{user}/{repo}/git/trees/{branch}?recursive=true",
+                self.base_url,
             ))
             .header("Accept", "application/vnd.github+json")
             .header("User-Agent", "Git Chest")
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error fetching repository tree from GitHub API"
+            })?;
 
         self.update_rate_limit(res.headers(), pool).await?;
 
-        let data = res.json::<GitHubAPIRepoTree>().await?;
+        let data = res.json::<GitHubAPIRepoTree>().await.map_err(|e| {
+            error!("{:?}", e);
+            "Error parsing repository tree from GitHub API"
+        })?;
 
         info!("fetching github repo tree took {:?}", start.elapsed());
 
@@ -113,23 +124,29 @@ impl GitHubAPI {
         repo: &str,
         branch: &str,
         filename: &str,
-        pool: &SqlitePool,
     ) -> AppResult<String> {
-        self.check_rate_limit(pool).await?;
         let start = Instant::now();
 
         let res = self
             .client
             .get(format!(
-                "{}/{}/{}/{}/{}",
-                self.base_content_url, user, repo, branch, filename
+                "{}/{user}/{repo}/{branch}/{filename}",
+                self.base_content_url,
             ))
+            .header("Host", "raw.githubusercontent.com")
+            .header("Accept", "*/*")
+            .header("User-Agent", "Git Chest")
             .send()
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error fetching repository README from GitHub API"
+            })?;
 
-        self.update_rate_limit(res.headers(), pool).await?;
-
-        let data = res.text().await?;
+        let data = res.text().await.map_err(|e| {
+            error!("{:?}", e);
+            "Error parsing repository README from GitHub API"
+        })?;
 
         info!("fetching github repo readme took {:?}", start.elapsed());
 

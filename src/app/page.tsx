@@ -118,7 +118,9 @@ export default function Home() {
             </div>
           ))
         ) : (
-          <p className="text-fg-tertiary">No repositories saved yet.</p>
+          <p className="text-fg-tertiary p-2 text-center">
+            No repositories saved yet.
+          </p>
         )}
       </div>
     </main>

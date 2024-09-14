@@ -1,7 +1,7 @@
 use serde::Serialize;
 use sqlx::SqlitePool;
 use tokio::time::Instant;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::error::{AppError, AppResult};
 
@@ -54,7 +54,7 @@ impl RepoEvent {
 
 async fn watch_repo_event(repo_id: i64, event: &str, pool: &SqlitePool) -> AppResult<()> {
     if !RepoEvent::is_valid(event) {
-        return AppError::new(&format!("Invalid repo event \"{}\"", event));
+        return AppError::new(&format!("Invalid repo event \"{event}\""));
     }
 
     let query = "INSERT INTO watch_repo_event (repo_id, event) VALUES (?, ?)";
@@ -62,7 +62,11 @@ async fn watch_repo_event(repo_id: i64, event: &str, pool: &SqlitePool) -> AppRe
         .bind(repo_id)
         .bind(event)
         .execute(pool)
-        .await?
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error inserting watch repo event to database"
+        })?
         .last_insert_rowid();
 
     Ok(())

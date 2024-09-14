@@ -48,12 +48,13 @@ CREATE TABLE IF NOT EXISTS repo_tree (
 
 -- Create the 'repo_tree_item' table.
 CREATE TABLE IF NOT EXISTS repo_tree_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     repo_id INTEGER NOT NULL,
     parent_id INTEGER,
-    path TEXT NOT NULL UNIQUE,
-    mode TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type in ('tree', 'blob')),
-    sha TEXT NOT NULL UNIQUE,
+    path TEXT NOT NULL,
+    mode TEXT NOT NULL CHECK (type in ('100644', '100755', '040000', '120000', '160000')),
+    type TEXT NOT NULL CHECK (type in ('tree', 'blob', 'commit')),
+    sha TEXT NOT NULL,
     size INTEGER,
     FOREIGN KEY (repo_id)
         REFERENCES repo (id)
