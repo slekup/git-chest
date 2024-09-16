@@ -126,7 +126,8 @@ const Sidebar = () => {
   return (
     <>
       <div className="relative min-w-14"></div>
-      <div className="absolute top-0 left-0 bottom-0 h-full min-w-14 max-w-14 bg-bg-sidebar border-r border-border">
+
+      <div className="fixed top-0 left-0 bottom-0 h-full min-w-14 max-w-14 bg-bg-sidebar border-r border-border">
         <div className="m-2 p-1 w-10 h-10 rounded-md">
           <Image src="/logo.svg" width={40} height={40} alt="Logo" />
         </div>

@@ -1493,6 +1493,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dirs",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

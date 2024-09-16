@@ -9,3 +9,4 @@ export { default as Modal } from "./global/Modal";
 export { default as Input } from "./global/Input";
 export { default as TextArea } from "./global/TextArea";
 export { default as Label } from "./global/Label";
+export { default as Loader } from "./global/Loader";

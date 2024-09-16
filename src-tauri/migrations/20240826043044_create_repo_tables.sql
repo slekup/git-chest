@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS repo_tree_item (
     repo_id INTEGER NOT NULL,
     parent_id INTEGER,
     path TEXT NOT NULL,
-    mode TEXT NOT NULL CHECK (type in ('100644', '100755', '040000', '120000', '160000')),
+    mode TEXT NOT NULL CHECK (mode in ('100644', '100755', '040000', '120000', '160000')),
     type TEXT NOT NULL CHECK (type in ('tree', 'blob', 'commit')),
     sha TEXT NOT NULL,
     size INTEGER,
@@ -76,6 +76,22 @@ CREATE INDEX IF NOT EXISTS idx_repo_tree_item_parent_id on repo_tree_item (paren
 CREATE TABLE IF NOT EXISTS repo_readme (
     repo_id INTEGER PRIMARY KEY NOT NULL,
     content TEXT NOT NULL,
+    FOREIGN KEY (repo_id)
+        REFERENCES repo (id)
+            ON DELETE CASCADE
+            ON UPDATE CASCADE
+);
+
+
+
+-- Create the 'repo_readme_image' table.
+CREATE TABLE IF NOT EXISTS repo_readme_asset (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repo_id INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK (type in ('image', 'video')), 
+    ext TEXT CHECK (ext in ('png', 'jpg', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'ico')), 
+    url TEXT NOT NULL,
+    alt TEXT,
     FOREIGN KEY (repo_id)
         REFERENCES repo (id)
             ON DELETE CASCADE

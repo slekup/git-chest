@@ -109,7 +109,7 @@ const Toast = ({ toast }: Props) => {
           </button>
         </div>
 
-        {toast.description && (
+        {typeof toast.description === "string" && (
           <div className={clsx("px-4 pb-4 pt-3", typeBackground[toast.type])}>
             <div className="mt-0.5 text-sm leading-4 text-fg-secondary">
               {toast.description.split("\n").map((line, i) => (

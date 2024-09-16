@@ -1,36 +1,50 @@
 "use client";
 
-import { Tooltip } from "@components/index";
-import { addToast } from "@slices/toasts.slice";
-import { invoke } from "@tauri-apps/api/core";
-import { ToastType } from "@typings/core";
-import { durationSince, formatDate } from "@utils/formatDate";
 import clsx from "clsx";
 import Image from "next/image";
 import Link from "next/link";
 import { ChangeEvent, useEffect, useState } from "react";
-import { AiOutlineLoading, AiOutlineLoading3Quarters } from "react-icons/ai";
-import { BsDatabaseCheck } from "react-icons/bs";
-import { HiOutlineSearch } from "react-icons/hi";
-import { RiLoader2Fill, RiLoaderFill } from "react-icons/ri";
 import { useDispatch } from "react-redux";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+
+import { BsDatabaseCheck } from "react-icons/bs";
+import {
+  GoGitPullRequest,
+  GoIssueOpened,
+  GoRepoForked,
+  GoStar,
+} from "react-icons/go";
+import { HiOutlineSearch } from "react-icons/hi";
+
+import { Loader, Tooltip } from "@components/index";
+import { addToast } from "@slices/toasts.slice";
+import { ToastType } from "@typings/core";
+import { durationSince } from "@utils/formatDate";
 
 interface Repo {
   id: number;
   platform: string;
-  user: string;
   repo: string;
   clone_data: boolean;
-  auto_sync: boolean;
-  created_at: string;
   updated_at: string;
+  owner: {
+    id: number;
+    user: string;
+    avatar: string;
+  };
+  description: string;
+  stars: number;
+  forks: number;
+  issues: number;
+  pull_requests: number;
+  visibility: string;
 }
 
 export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
   const [repos, setRepos] = useState<Repo[]>([]);
 
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {};
+  const onChange = (_: ChangeEvent<HTMLInputElement>) => {};
 
   const dispatch = useDispatch();
 
@@ -69,7 +83,7 @@ export default function Home() {
         {loading ? (
           <div className="relative h-10">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <RiLoaderFill className="h-8 w-8 text-fg-tertiary animate-loader" />
+              <Loader />
             </div>
           </div>
         ) : repos.length > 0 ? (
@@ -77,43 +91,94 @@ export default function Home() {
             <div
               key={i}
               className={clsx(
-                "flex justify-between p-2",
+                "flex justify-between py-2 px-3",
                 i !== 0 && "border-t border-border",
               )}
             >
-              <div className="flex">
-                <Image
-                  src={`/${repo.platform}.svg`}
-                  width={30}
-                  height={30}
-                  alt={`${repo.platform} logo`}
-                  className="rounded-lg"
-                />
-                <div className="ml-5">
-                  <Link
-                    href={`/repos/${repo.id}`}
-                    className="block relative text-xl group"
-                  >
-                    <span>{repo.user}</span>
-                    <span className="text-fg-tertiary mx-1">/</span>
-                    <span className="font-bold">{repo.repo}</span>
-                    <span className="absolute bottom-0 left-0 w-0 h-px origin-left bg-gradient-to-r from-primary to-primary-active group-hover:w-full transition-[width] duration-100"></span>
-                  </Link>
+              <div className="relative flex">
+                <div className="h-10 w-10">
+                  <Image
+                    src={convertFileSrc(repo.owner.avatar)}
+                    width={30}
+                    height={30}
+                    alt={`${repo.owner.user} avatar`}
+                    className="h-10 w-10 absolute top-1/2 -translate-y-1/2 rounded-full object-contain"
+                  />
+                </div>
+                <div className="ml-4">
+                  <div className="flex mt-0.5">
+                    <div className="flex relative text-xl">
+                      <Image
+                        src={`/${repo.platform}.svg`}
+                        width={18}
+                        height={18}
+                        alt={`${repo.platform} logo`}
+                        className="mt-0.5 mr-1.5 rounded-lg"
+                      />
+                      <Link
+                        href={`/user?username=${repo.owner.user}`}
+                        className="text-link hover:underline"
+                      >
+                        {repo.owner.user}
+                      </Link>
+                      <span className="text-fg-tertiary mx-1">/</span>
+                      <Link
+                        href={`/repo?id=${repo.id}`}
+                        className="font-bold text-link hover:underline"
+                      >
+                        {repo.repo}
+                      </Link>
+                    </div>
+                    <div className="mt-1 -mb-0.5 h-6 ml-2 text-xs py-0.5 px-1.5 rounded-full bg-bg text-fg-tertiary font-medium border border-border capitalize">
+                      {repo.visibility}
+                    </div>
+                    {repo.clone_data && (
+                      <div className="ml-1.5 my-1 translate-y-px">
+                        <Tooltip text="Data Cloned" offset={20}>
+                          <BsDatabaseCheck className="h-5 w-5 text-purple-500" />
+                        </Tooltip>
+                      </div>
+                    )}
+                  </div>
 
                   <p className="text-sm -mt-0.5 text-fg-tertiary">
-                    description goes here..
+                    {repo.description}
                   </p>
                 </div>
-                <div className="ml-1.5 my-1 translate-y-px">
-                  <Tooltip text="Data Cloned" offset={20}>
-                    <BsDatabaseCheck className="h-5 w-5 text-purple-500" />
-                  </Tooltip>
-                </div>
               </div>
-              <div className="flex pt-1">
-                <p className="text-fg-tertiary text-sm">
+              <div className="pt-1">
+                <div className="text-fg-tertiary text-sm">
                   Last Synced: {durationSince(repo.updated_at)} ago
-                </p>
+                </div>
+                <div className="mt-1 flex justify-end text-sm text-fg-tertiary">
+                  <Link
+                    href={`/repo/stars?id=${repo.id}`}
+                    className="flex hover:text-link"
+                  >
+                    <GoStar className="h-4 w-4 mt-[3px] mr-0.5" /> {repo.stars}
+                  </Link>
+                  <Link
+                    href={`/repo/stars?id=${repo.id}`}
+                    className="flex ml-2 hover:text-link"
+                  >
+                    <GoRepoForked className="h-4 w-4 mt-[3px] mr-0.5" />{" "}
+                    {repo.forks}
+                  </Link>
+                  <Link
+                    href={`/repo/stars?id=${repo.id}`}
+                    className="flex ml-2 hover:text-link"
+                  >
+                    <GoIssueOpened className="h-4 w-4 mt-[3px] mr-0.5" />{" "}
+                    {repo.issues}
+                  </Link>
+                  <Link
+                    href={`/repo/stars?id=${repo.id}`}
+                    className="flex ml-2 hover:text-link"
+                  >
+                    <GoGitPullRequest className="h-4 w-4 mt-[3px] mr-0.5" />{" "}
+                    {repo.pull_requests}
+                  </Link>
+                </div>
               </div>
             </div>
           ))

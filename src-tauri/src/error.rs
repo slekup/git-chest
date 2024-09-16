@@ -33,6 +33,12 @@ impl From<&str> for AppError {
     }
 }
 
+impl From<String> for AppError {
+    fn from(value: String) -> Self {
+        AppError::Custom(value)
+    }
+}
+
 impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

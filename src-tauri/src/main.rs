@@ -17,6 +17,7 @@ pub mod repo;
 pub mod settings;
 pub mod state;
 pub mod submodule;
+pub mod user;
 pub mod utils;
 
 #[tokio::main]
@@ -41,8 +42,12 @@ async fn main() -> anyhow::Result<()> {
             get_version,
             commands::repo::add_repo,
             commands::repo::get_repo_list,
+            commands::repo::get_repo,
+            commands::repo::remove_repo,
             commands::settings::get_settings,
             commands::settings::set_theme,
+            commands::user::get_user,
+            commands::user::remove_user,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoOwner {
+pub struct GitHubApiRepoOwner {
     pub login: String,
     pub id: i32,
     pub node_id: String,
@@ -13,7 +13,7 @@ pub struct GitHubAPIRepoOwner {
 }
 
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoLicense {
+pub struct GitHubApiRepoLicense {
     pub key: String,
     pub name: String,
     pub spdx_id: String,
@@ -21,7 +21,7 @@ pub struct GitHubAPIRepoLicense {
 }
 
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoOrg {
+pub struct GitHubApiRepoOrg {
     pub login: String,
     pub id: i32,
     pub node_id: String,
@@ -32,13 +32,13 @@ pub struct GitHubAPIRepoOrg {
 
 /// URL-related properties are not included.
 #[derive(Deserialize)]
-pub struct GitHubAPIRepo {
+pub struct GitHubApiRepo {
     pub id: i32,
     pub node_id: String,
     pub name: String,
     pub full_name: String,
     pub private: bool,
-    pub owner: GitHubAPIRepoOwner,
+    pub owner: GitHubApiRepoOwner,
     pub description: String,
     pub fork: bool,
     pub created_at: String,
@@ -59,7 +59,7 @@ pub struct GitHubAPIRepo {
     pub archived: bool,
     pub disabled: bool,
     pub open_issues_count: i32,
-    pub license: GitHubAPIRepoLicense,
+    pub license: GitHubApiRepoLicense,
     pub allow_forking: bool,
     pub is_template: bool,
     pub web_commit_signoff_required: bool,
@@ -70,13 +70,13 @@ pub struct GitHubAPIRepo {
     pub watchers: i32,
     pub default_branch: String,
     pub custom_properties: Option<HashMap<String, String>>,
-    pub org: Option<GitHubAPIRepoOrg>,
+    pub org: Option<GitHubApiRepoOrg>,
     pub network_count: i32,
     pub subscribers_count: i32,
 }
 
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoTreeItem {
+pub struct GitHubApiRepoTreeItem {
     pub path: String,
     /// 'tree' (directory) or 'blob' (file).
     pub mode: String,
@@ -87,8 +87,33 @@ pub struct GitHubAPIRepoTreeItem {
 
 /// The hierarchy between files in a Git repository.
 #[derive(Deserialize)]
-pub struct GitHubAPIRepoTree {
+pub struct GitHubApiRepoTree {
     pub sha: String,
-    pub tree: Vec<GitHubAPIRepoTreeItem>,
+    pub tree: Vec<GitHubApiRepoTreeItem>,
     pub truncated: bool,
+}
+
+#[derive(Deserialize)]
+pub struct GitHubApiUser {
+    pub login: String,
+    pub id: i32,
+    pub node_id: String,
+    pub avatar_url: String,
+    pub gravatar_id: String,
+    /// 'User' or 'Organization'
+    pub r#type: String,
+    pub site_admin: bool,
+    pub name: Option<String>,
+    pub company: Option<String>,
+    pub blog: String,
+    pub location: Option<String>,
+    pub hireable: Option<bool>,
+    pub bio: Option<String>,
+    pub twitter_username: Option<String>,
+    pub public_repos: i32,
+    pub public_gists: i32,
+    pub followers: i32,
+    pub following: i32,
+    pub created_at: String,
+    pub updated_at: String,
 }

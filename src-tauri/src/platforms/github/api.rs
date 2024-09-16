@@ -5,14 +5,14 @@ use tracing::{error, info};
 
 use crate::{
     error::{AppError, AppResult},
-    platforms::github::api_models::GitHubAPIRepoTree,
+    platforms::github::api_models::{GitHubApiRepoTree, GitHubApiUser},
     utils::{
         data::{parse_body, parse_header, parse_header_num},
         rate_limit::{check_rate_limit, update_rate_limit},
     },
 };
 
-use super::api_models::GitHubAPIRepo;
+use super::api_models::GitHubApiRepo;
 
 pub struct GitHubAPI {
     client: reqwest::Client,
@@ -43,13 +43,12 @@ impl GitHubAPI {
         check_rate_limit("github", resource, pool).await
     }
 
-    /// Fetch a GitHub repository.
     pub async fn fetch_repo(
         &self,
         user: &str,
         repo: &str,
         pool: &SqlitePool,
-    ) -> AppResult<GitHubAPIRepo> {
+    ) -> AppResult<GitHubApiRepo> {
         self.check_rate_limit("core", pool).await?;
         let start = Instant::now();
 
@@ -66,14 +65,14 @@ impl GitHubAPI {
             })?;
 
         if let Err(error) = res.error_for_status_ref() {
-            tracing::error!("{:?}", res.text().await?);
+            error!("{:?}", res.text().await?);
             return AppError::new(&error.to_string());
         }
 
         self.update_rate_limit(res.headers(), pool).await?;
 
         let body = res.text().await?;
-        let json_body: GitHubAPIRepo =
+        let json_body: GitHubApiRepo =
             parse_body(&body, "Error parsing repository from GitHub API")?;
 
         info!("fetching github repo took {:?}", start.elapsed());
@@ -87,7 +86,7 @@ impl GitHubAPI {
         repo: &str,
         branch: &str,
         pool: &SqlitePool,
-    ) -> AppResult<GitHubAPIRepoTree> {
+    ) -> AppResult<GitHubApiRepoTree> {
         self.check_rate_limit("core", pool).await?;
         let start = Instant::now();
 
@@ -106,9 +105,14 @@ impl GitHubAPI {
                 "Error fetching repository tree from GitHub API"
             })?;
 
+        if let Err(error) = res.error_for_status_ref() {
+            error!("{:?}", res.text().await?);
+            return AppError::new(&error.to_string());
+        }
+
         self.update_rate_limit(res.headers(), pool).await?;
 
-        let data = res.json::<GitHubAPIRepoTree>().await.map_err(|e| {
+        let data = res.json::<GitHubApiRepoTree>().await.map_err(|e| {
             error!("{:?}", e);
             "Error parsing repository tree from GitHub API"
         })?;
@@ -143,6 +147,11 @@ impl GitHubAPI {
                 "Error fetching repository README from GitHub API"
             })?;
 
+        if let Err(error) = res.error_for_status_ref() {
+            error!("{:?}", res.text().await?);
+            return AppError::new(&error.to_string());
+        }
+
         let data = res.text().await.map_err(|e| {
             error!("{:?}", e);
             "Error parsing repository README from GitHub API"
@@ -151,5 +160,36 @@ impl GitHubAPI {
         info!("fetching github repo readme took {:?}", start.elapsed());
 
         Ok(data)
+    }
+
+    pub async fn fetch_user(&self, user: &str, pool: &SqlitePool) -> AppResult<GitHubApiUser> {
+        self.check_rate_limit("core", pool).await?;
+        let start = Instant::now();
+
+        let res = self
+            .client
+            .get(format!("{}/users/{user}", self.base_url))
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "Git Chest")
+            .send()
+            .await
+            .map_err(|e| {
+                error!("{:?}", e);
+                "Error fetching user from GitHub API"
+            })?;
+
+        if let Err(error) = res.error_for_status_ref() {
+            error!("{:?}", res.text().await?);
+            return AppError::new(&error.to_string());
+        }
+
+        self.update_rate_limit(res.headers(), pool).await?;
+
+        let body = res.text().await?;
+        let json_body: GitHubApiUser = parse_body(&body, "Error parsing user from GitHub API")?;
+
+        info!("fetching github user took {:?}", start.elapsed());
+
+        Ok(json_body)
     }
 }

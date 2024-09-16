@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { redirect, useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import Image from "next/image";
 import { useDispatch } from "react-redux";
@@ -35,19 +35,15 @@ import {
   SwitchBox,
   Modal,
 } from "@components";
+import { Platform } from "@typings/platform";
+import { MdOutlineHourglassEmpty } from "react-icons/md";
+import { RiLoaderFill } from "react-icons/ri";
 
-interface Directory {
+/* interface Directory {
   id: number;
   name: string;
   directories: Directory[];
-}
-
-enum Platform {
-  Bitbucket = "bitbucket",
-  GitHub = "github",
-  GitLab = "gitlab",
-  Gitea = "gitea",
-}
+} */
 
 enum RepoEvent {
   Branches = "branches",
@@ -78,42 +74,69 @@ interface AddRepoForm {
   auto_sync: AutoSync;
 }
 
-interface AddRepoProgress {
-  progress: number;
+interface AddRepoProgressTaskPayload {
+  platform: string;
+  user: string;
+  repo: string;
   task_id: string;
+  percentage: number;
   step: number;
   total_steps: number;
 }
 
-const repoProgressTaskDescription: { [key: string]: any } = {
-  insert_basic_info: "Add basic information to database",
-  fetch_metadata: "Fetch metadata from platform",
-  insert_metadata: "Add metadata to database",
-  fetch_tree: "Fetch tree from platform",
-  insert_tree: "Add tree contents to database (potentially slow)",
-  fetch_readme: "Fetch README from platform",
-  insert_readme: "Add README to database",
+interface AddRepoProgressTask {
+  task_id: string;
+  percentage: number;
+  step: number;
+  total_steps: number;
+}
+
+interface AddRepoProgress {
+  platform: string;
+  user: string;
+  repo: string;
+  tasks: AddRepoProgressTask[];
+}
+
+const repoProgressTaskDescription = (key: string, platform: string) => {
+  const descriptions: { [key: string]: any } = {
+    metadata: `Fetch metadata from ${platform}.`,
+    fetch_tree: `Fetch tree from ${platform}.`,
+    insert_tree: "Add tree to database (potentially slow).",
+    readme: `Fetch README from ${platform} and download assets.`,
+    owner: `Fetch owner user ${platform} (if not exists).`,
+  };
+  return descriptions[key];
 };
 
 const repoProgressTaskIds = [
-  "insert_basic_info",
-  "fetch_metadata",
-  "insert_metadata",
+  "metadata",
   "fetch_tree",
   "insert_tree",
-  "fetch_readme",
-  "insert_readme",
+  "readme",
+  "owner",
 ];
 
+const platformName = (key: string) => {
+  const names: { [key: string]: any } = {
+    [Platform.Bitbucket]: "Bitbucket",
+    [Platform.GitHub]: "GitHub",
+    [Platform.GitLab]: "GitLab",
+    [Platform.Gitea]: "Gitea",
+  };
+  return names[key];
+};
+
 export default function Add() {
-  const [directoryName, setDirectoryName] = useState<string | undefined>();
-  const [directories, setDirectories] = useState<Directory[] | undefined>();
+  // const [directoryName, setDirectoryName] = useState<string | undefined>();
+  // const [directories, setDirectories] = useState<Directory[] | undefined>();
   const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
   const [fromURL, setFromURL] = useState<string>("");
   const [addingRepo, setAddingRepo] = useState<boolean>(false);
-  const [addRepoProgress, setAddRepoProgress] = useState<AddRepoProgress[]>([]);
+  const [repoTasks, setAddRepoProgress] = useState<AddRepoProgress[]>([]);
 
   const dispatch = useDispatch();
+  const router = useRouter();
   const params = useSearchParams();
   const directoryId = params.get("directory_id");
 
@@ -144,16 +167,38 @@ export default function Add() {
     type RemoveListenerBlock = () => void;
     let removeListener: RemoveListenerBlock | undefined;
 
-    console.log("starting to listen");
-
     const setUpListener = async () => {
-      removeListener = await listen<AddRepoProgress>(
+      removeListener = await listen<AddRepoProgressTaskPayload>(
         "add-repo-progress",
         (event) => {
-          let newAddRepoProgress = addRepoProgress.filter(
-            (task) => task.task_id !== event.payload.task_id,
+          let repo = repoTasks.find(
+            (r) =>
+              r.platform !== event.payload.platform &&
+              r.user !== event.payload.user &&
+              r.repo !== event.payload.repo,
           );
-          setAddRepoProgress([...newAddRepoProgress, event.payload]);
+          if (!repo)
+            repo = {
+              platform: event.payload.platform,
+              user: event.payload.user,
+              repo: event.payload.repo,
+              tasks: [],
+            };
+          repo.tasks = [
+            ...repo.tasks.filter((t) => t.task_id !== event.payload.task_id),
+            {
+              task_id: event.payload.task_id,
+              percentage: event.payload.percentage,
+              step: event.payload.step,
+              total_steps: event.payload.total_steps,
+            },
+          ];
+
+          let otherRepos = repoTasks.filter(
+            (r) =>
+              r.user !== event.payload.user && r.repo !== event.payload.repo,
+          );
+          setAddRepoProgress([...otherRepos, repo]);
         },
       );
     };
@@ -165,7 +210,7 @@ export default function Add() {
     return () => {
       removeListener?.();
     };
-  }, [addRepoProgress]);
+  }, [repoTasks]);
 
   const fillFail = (msg: string) => {
     dispatch(
@@ -246,16 +291,18 @@ export default function Add() {
       .then((id) => {
         console.log(id);
         setAddingRepo(false);
-        dispatch({
-          title: "Successfully added repository.",
-          description: `User: ${data.user}\nRepository:${data.repo}`,
-          type: ToastType.Success,
-        });
-        /// TODO: Redirect to the repo page.
-        redirect("/");
+        dispatch(
+          addToast({
+            title: "Successfully added repository.",
+            description: `User: ${data.user}\nRepository:${data.repo}`,
+            type: ToastType.Success,
+          }),
+        );
+        router.push(`/repo?id=${id}`);
       })
       .catch((err) => {
         setAddingRepo(false);
+        console.error(err);
         dispatch(
           addToast({
             title: "Failed to add repo",
@@ -263,68 +310,103 @@ export default function Add() {
             type: ToastType.Error,
           }),
         );
-        console.error(err);
       });
   };
 
   return addingRepo ? (
-    addRepoProgress ? (
-      <main className="max-w-3xl mx-auto my-10 p-5">
-        <div className="bg-bg-secondary border border-border p-5 rounded-lg">
-          {repoProgressTaskIds.map((task_id, i) =>
-            (({ current_i, task }) => (
-              <div
-                key={i}
-                className={clsx(
-                  "flex mt-5 w-full transition-[opacity] duration-500",
-                  current_i < i && "opacity-30",
-                )}
-              >
-                <HiCheck className={clsx("h-7 w-7 text-success")} />
-                <div className="ml-5 w-full">
-                  <div className="flex justify-between">
-                    <p className="text-fg-secondary">
-                      {repoProgressTaskDescription[current_i]}
-                      <div className="flex ml-1 text-sm">
-                        {task?.step && task?.total_steps && (
-                          <span className="text-base text-fg-secondary mr-2">
-                            {task.step}/{task.total_steps}
-                          </span>
+    repoTasks ? (
+      <main className="max-w-3xl mx-auto my-10 mt-5 p-5">
+        <h1 className="font-semibold text-2xl border-b border-border pb-5">
+          Adding Repositories
+        </h1>
+        {repoTasks.map((repoProgress, repo_i) => (
+          <div key={repo_i} className="mt-8 border border-border rounded-lg">
+            <div className="flex py-4 px-5 bg-bg-tertiary rounded-t-lg border-b border-border text-lg">
+              <Image
+                src={`/${repoProgress.platform}.svg`}
+                width={30}
+                height={30}
+                alt={`${platformName(repoProgress.platform)} logo`}
+                className="rounded-lg"
+              />
+              <span className="ml-4">{repoProgress.user}</span>
+              <span className="mx-1">/</span>
+              <span className="font-semibold">{repoProgress.repo}</span>
+            </div>
+            <div className="bg-bg-secondary p-5 pt-2 pb-7 rounded-lg rounded-t-none">
+              {repoProgressTaskIds.map((task_id, i) =>
+                (({ current_i, task }) => (
+                  <div
+                    key={i}
+                    className={clsx(
+                      "flex mt-5 w-full transition-[opacity] duration-500",
+                      current_i > i && "opacity-50",
+                      current_i < i && "opacity-30",
+                    )}
+                  >
+                    {current_i > i ? (
+                      <HiCheck className={"h-7 w-7 text-success"} />
+                    ) : current_i === i ? (
+                      <RiLoaderFill className="h-8 w-8 text-fg-tertiary animate-loader2" />
+                    ) : (
+                      <MdOutlineHourglassEmpty
+                        className={"h-7 w-7 text-fg-tertiary"}
+                      />
+                    )}
+                    <div className="ml-5 w-full">
+                      <div className="flex justify-between">
+                        {repoProgressTaskDescription(
+                          task_id,
+                          platformName(repoProgress.platform),
                         )}
-                        <span className="text-fg-tertiary">
-                          {current_i > i
-                            ? "completed"
-                            : current_i === i
-                              ? task?.progress
-                              : "pending"}
-                        </span>
+
+                        <div className="flex ml-1 text-sm text-fg-secondary">
+                          {typeof task?.step !== "undefined" &&
+                            typeof task?.total_steps !== "undefined" && (
+                              <div className="text-fg-secondary mr-1.5">
+                                {task.step.toLocaleString()}/
+                                {task.total_steps.toLocaleString()}
+                              </div>
+                            )}
+                          <div className="text-fg-tertiary">
+                            {current_i > i
+                              ? "(100%)"
+                              : current_i === i
+                                ? `(${task?.percentage}%)`
+                                : "(0%)"}
+                          </div>
+                        </div>
                       </div>
-                    </p>
+                      <div className="block w-full mt-1 h-1 rounded-lg bg-bg-tertiary">
+                        <div
+                          className="block w-1/2 h-full rounded-lg bg-success transition-[width] duration-500"
+                          style={{
+                            width:
+                              current_i > i
+                                ? "100%"
+                                : current_i === i
+                                  ? `${task?.percentage ?? 0}%`
+                                  : "0%",
+                          }}
+                        ></div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="block w-full mt-1 h-1 rounded-lg bg-bg-tertiary">
-                    <div
-                      className="block w-1/2 h-full rounded-lg bg-gradient-to-r from-success-active to-success transition-[width] duration-500"
-                      style={{
-                        width:
-                          current_i > i
-                            ? "100%"
-                            : current_i === i
-                              ? `${task?.task_id ?? 0}%`
-                              : "0%",
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            ))({
-              current_i: repoProgressTaskIds.findIndex(
-                (id) =>
-                  id == addRepoProgress[addRepoProgress.length - 1].task_id,
-              ),
-              task: addRepoProgress.find((task) => task.task_id == task_id),
-            }),
-          )}
-        </div>
+                ))({
+                  current_i: repoProgressTaskIds.findIndex(
+                    (id) =>
+                      id ==
+                        repoProgress.tasks[repoProgress.tasks.length - 1]
+                          ?.task_id ?? 0,
+                  ),
+                  task: repoProgress.tasks.find(
+                    (task) => task.task_id == task_id,
+                  ),
+                }),
+              )}
+            </div>
+          </div>
+        ))}
       </main>
     ) : (
       <></>

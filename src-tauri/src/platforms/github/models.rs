@@ -88,3 +88,32 @@ pub struct GitHubRepoData {
     pub license: GitHubRepoLicense,
     pub custom_properties: Vec<GitHubRepoCustomProperty>,
 }
+
+#[derive(Serialize, FromRow)]
+pub struct GitHubUser {
+    pub login: String,
+    pub id: i32,
+    pub node_id: String,
+    pub gravatar_id: String,
+    /// 'User' or 'Organization'
+    pub r#type: String,
+    pub site_admin: bool,
+    pub name: Option<String>,
+    pub company: Option<String>,
+    pub blog: String,
+    pub location: Option<String>,
+    pub hireable: bool,
+    pub bio: Option<String>,
+    pub twitter_username: Option<String>,
+    pub public_repos: i32,
+    pub public_gists: i32,
+    pub followers: i32,
+    pub following: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Serialize)]
+pub struct GitHubUserData {
+    pub user: GitHubUser,
+}

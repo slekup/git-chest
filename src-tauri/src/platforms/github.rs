@@ -1,16 +1,24 @@
 use std::collections::HashMap;
 
+use crate::utils::dirs::ensure_dir;
 use api::GitHubAPI;
-use api_models::{GitHubAPIRepoLicense, GitHubAPIRepoOrg, GitHubAPIRepoOwner, GitHubAPIRepoTree};
+use api_models::{GitHubApiRepoLicense, GitHubApiRepoOrg, GitHubApiRepoOwner, GitHubApiRepoTree};
+use chrono::Utc;
 use models::{
     GitHubRepo, GitHubRepoCustomProperty, GitHubRepoData, GitHubRepoLicense, GitHubRepoOrg,
-    GitHubRepoOwner,
+    GitHubRepoOwner, GitHubUser, GitHubUserData,
 };
-use sqlx::SqlitePool;
+use sqlx::{prelude::FromRow, SqlitePool};
 use tauri::AppHandle;
-use tracing::error;
+use tokio::{fs, io::AsyncWriteExt, time::Instant};
+use tracing::{error, info};
 
-use crate::{commands::repo::AddRepoProgress, error::AppResult, utils::data::progress_percentage};
+use crate::{
+    commands::repo::{AddRepoProgress, DbPlatformRepo, RepoPreviewOwner},
+    error::AppResult,
+    repo::download_readme_assets,
+    utils::{data::progress_percentage, dirs::get_data_dir, image::download_image},
+};
 
 pub mod api;
 pub mod api_models;
@@ -18,7 +26,7 @@ pub mod models;
 
 async fn add_github_repo_owner(
     github_repo_id: i64,
-    owner: GitHubAPIRepoOwner,
+    owner: GitHubApiRepoOwner,
     pool: &SqlitePool,
 ) -> AppResult<()> {
     let org_query = "
@@ -47,7 +55,7 @@ async fn add_github_repo_owner(
 
 async fn add_github_repo_org(
     github_repo_id: i64,
-    org: Option<GitHubAPIRepoOrg>,
+    org: Option<GitHubApiRepoOrg>,
     pool: &SqlitePool,
 ) -> AppResult<()> {
     if let Some(org) = org {
@@ -78,7 +86,7 @@ async fn add_github_repo_org(
 
 async fn add_github_repo_license(
     github_repo_id: i64,
-    license: GitHubAPIRepoLicense,
+    license: GitHubApiRepoLicense,
     pool: &SqlitePool,
 ) -> AppResult<()> {
     let license_query = "
@@ -160,7 +168,9 @@ async fn add_github_repo_custom_properties(
 
 async fn add_github_repo_tree(
     repo_id: i64,
-    tree: GitHubAPIRepoTree,
+    user: &str,
+    repo: &str,
+    tree: GitHubApiRepoTree,
     pool: &SqlitePool,
     app: &AppHandle,
 ) -> AppResult<()> {
@@ -193,10 +203,6 @@ async fn add_github_repo_tree(
             parent_id = Some(*tree_ids.get(*parent_name).unwrap());
         }
 
-        if !["tree".to_string(), "blob".to_string()].contains(&item.r#type) {
-            error!("{:?}", &item.r#type);
-        }
-
         let item_query = "
             INSERT INTO repo_tree_item (
                 repo_id, parent_id, path, mode, type, sha, size
@@ -226,8 +232,135 @@ async fn add_github_repo_tree(
         }
 
         let progress = progress_percentage(i, total_tree_items);
-        AddRepoProgress::InsertTree.send(progress, (i + 1) as u64, total_tree_items as u64, app);
+        AddRepoProgress::InsertTree.send(
+            "github",
+            user,
+            repo,
+            progress,
+            (i + 1) as u64,
+            total_tree_items as u64,
+            app,
+        );
     }
+
+    Ok(())
+}
+
+async fn check_github_user_exists(user: &str, pool: &SqlitePool) -> AppResult<bool> {
+    let exists_query = "SELECT id FROM github_user WHERE login = ?";
+    let exists = sqlx::query(exists_query)
+        .bind(user)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error checking if user exists in database"
+        })?;
+    Ok(exists.is_some())
+}
+
+async fn add_github_repo_owner_user(
+    user: &str,
+    repo: &str,
+    api: &GitHubAPI,
+    pool: &SqlitePool,
+    app: &AppHandle,
+) -> AppResult<()> {
+    AddRepoProgress::Owner.send("github", user, repo, 0, 0, 5, app);
+
+    let user_exists = check_github_user_exists(user, pool).await?;
+    if user_exists {
+        AddRepoProgress::Owner.send("github", user, repo, 100, 1, 1, app);
+        return Ok(());
+    }
+
+    let github_user = api.fetch_user(user, pool).await?;
+    AddRepoProgress::Owner.send("github", user, repo, 20, 1, 5, app);
+
+    let user_query =
+        "INSERT INTO user (platform, user, created_at, updated_at) VALUES (?, ?, ?, ?)";
+    let user_id = sqlx::query(user_query)
+        .bind("github")
+        .bind(user)
+        .bind(Utc::now().to_rfc3339())
+        .bind(Utc::now().to_rfc3339())
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding repository data into database"
+        })?
+        .last_insert_rowid();
+
+    AddRepoProgress::Owner.send("github", user, repo, 40, 2, 5, app);
+
+    let query = "
+        INSERT INTO github_user (
+            user_id, login, id, node_id, gravatar_id,
+            type, site_admin, company, blog, location,
+            hireable, bio, twitter_username, public_repos, public_gists,
+            followers, following, created_at, updated_at
+        )
+        VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?
+        )
+    ";
+    sqlx::query(query)
+        .bind(user_id)
+        .bind(github_user.login)
+        .bind(github_user.id)
+        .bind(github_user.node_id)
+        .bind(github_user.gravatar_id)
+        .bind(github_user.r#type)
+        .bind(github_user.site_admin)
+        .bind(github_user.company)
+        .bind(github_user.blog)
+        .bind(github_user.location)
+        .bind(github_user.hireable)
+        .bind(github_user.bio)
+        .bind(github_user.twitter_username)
+        .bind(github_user.public_repos)
+        .bind(github_user.public_gists)
+        .bind(github_user.followers)
+        .bind(github_user.following)
+        .bind(github_user.created_at)
+        .bind(github_user.updated_at)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error adding GitHub user from database"
+        })?
+        .last_insert_rowid();
+
+    AddRepoProgress::Owner.send("github", user, repo, 60, 3, 5, app);
+
+    let (bytes, ext) = download_image(&github_user.avatar_url).await?;
+    let avatar_query = "INSERT INTO user_avatar (user_id, platform, ext, url) VALUES (?, ?, ?, ?)";
+    let avatar_id = sqlx::query(avatar_query)
+        .bind(user_id)
+        .bind("github")
+        .bind(ext)
+        .bind(&github_user.avatar_url)
+        .execute(pool)
+        .await?
+        .last_insert_rowid();
+
+    AddRepoProgress::Owner.send("github", user, repo, 80, 4, 5, app);
+
+    let dir = get_data_dir().join("assets/avatars");
+    ensure_dir(&dir).await?;
+    let path = dir.join(avatar_id.to_string());
+    let mut file = fs::File::create(&path).await.map_err(|e| {
+        error!("{:?}", e);
+        "Error creating avatar image file"
+    })?;
+    file.write_all(&bytes).await?;
+
+    AddRepoProgress::Owner.send("github", user, repo, 100, 5, 5, app);
 
     Ok(())
 }
@@ -240,27 +373,30 @@ pub async fn add_github_repo(
     pool: &SqlitePool,
     app: &AppHandle,
 ) -> AppResult<()> {
-    AddRepoProgress::FetchMetadata.send(0, 0, 1, app);
+    AddRepoProgress::Metadata.send("github", user, repo, 0, 0, 2, app);
     let github_repo = api.fetch_repo(user, repo, pool).await?;
-    AddRepoProgress::FetchMetadata.send(100, 1, 1, app);
+    AddRepoProgress::Metadata.send("github", user, repo, 50, 1, 2, app);
 
-    AddRepoProgress::InsertMetadata.send(0, 0, 1, app);
     let query = "
         INSERT INTO github_repo (
-            repo_id, id, node_id, name, full_name, private, description, fork, created_at,
-            updated_at, pushed_at, homepage, size, stargazers_count, watchers_count, language,
-            has_issues, has_projects, has_downloads, has_wiki, has_pages, has_discussions,
-            forks_count, archived, disabled, open_issues_count, allow_forking, is_template,
-            web_commit_signoff_required, visibility, forks, open_issues, watchers,
-            default_branch, network_count, subscribers_count
+            repo_id, id, node_id, name, full_name, private,
+            description, fork, created_at, updated_at, 
+            pushed_at, homepage, size, stargazers_count, watchers_count,
+            language, has_issues, has_projects, has_downloads, has_wiki,
+            has_pages, has_discussions, forks_count, archived, disabled,
+            open_issues_count, allow_forking, is_template, web_commit_signoff_required, visibility,
+            forks, open_issues, watchers, default_branch, network_count,
+            subscribers_count
         )
         VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?
         )
     ";
     let github_repo_id = sqlx::query(query)
@@ -307,28 +443,23 @@ pub async fn add_github_repo(
             "Error adding GitHub repository from database"
         })?
         .last_insert_rowid();
-    AddRepoProgress::InsertMetadata.send(17, 1, 6, app);
+
     add_github_repo_owner(github_repo_id, github_repo.owner, pool).await?;
-    AddRepoProgress::InsertMetadata.send(34, 3, 6, app);
     add_github_repo_org(github_repo_id, github_repo.org, pool).await?;
     add_github_repo_license(github_repo_id, github_repo.license, pool).await?;
-    AddRepoProgress::InsertMetadata.send(51, 3, 6, app);
-    AddRepoProgress::InsertMetadata.send(68, 4, 6, app);
     add_github_repo_topics(github_repo_id, github_repo.topics, pool).await?;
-    AddRepoProgress::InsertMetadata.send(85, 5, 6, app);
     add_github_repo_custom_properties(github_repo_id, github_repo.custom_properties, pool).await?;
-    AddRepoProgress::InsertMetadata.send(100, 6, 6, app);
+    AddRepoProgress::Metadata.send("github", user, repo, 100, 2, 2, app);
 
-    AddRepoProgress::FetchTree.send(0, 0, 1, app);
+    AddRepoProgress::FetchTree.send("github", user, repo, 0, 0, 1, app);
     let github_repo_tree = api
         .fetch_repo_tree(user, repo, &github_repo.default_branch, pool)
         .await?;
-    AddRepoProgress::FetchTree.send(100, 1, 1, app);
+    AddRepoProgress::FetchTree.send("github", user, repo, 100, 1, 1, app);
 
-    add_github_repo_tree(repo_id, github_repo_tree, pool, app).await?;
+    add_github_repo_tree(repo_id, user, repo, github_repo_tree, pool, app).await?;
 
-    AddRepoProgress::FetchReadme.send(0, 0, 1, app);
-    AddRepoProgress::InsertReadme.send(100, 0, 1, app);
+    AddRepoProgress::Readme.send("github", user, repo, 0, 0, 1, app);
     let filename = sqlx::query_scalar::<_, String>(
         "SELECT path
          FROM repo_tree_item
@@ -345,65 +476,175 @@ pub async fn add_github_repo(
         let readme_content = api
             .fetch_repo_readme(user, repo, &github_repo.default_branch, &filename)
             .await?;
-        AddRepoProgress::FetchReadme.send(100, 1, 1, app);
 
-        AddRepoProgress::InsertReadme.send(100, 0, 1, app);
+        let parsed_readme_content =
+            download_readme_assets(&readme_content, repo_id, "github", user, repo, pool, app)
+                .await?;
+
         let readme_query = "INSERT INTO repo_readme (repo_id, content) VALUES (?, ?)";
         sqlx::query(readme_query)
             .bind(repo_id)
-            .bind(readme_content)
+            .bind(parsed_readme_content)
             .execute(pool)
             .await
             .map_err(|e| {
                 error!("{:?}", e);
                 "Error adding repository README to database"
             })?;
-        AddRepoProgress::InsertReadme.send(100, 1, 1, app);
     } else {
-        AddRepoProgress::FetchReadme.send(100, 1, 1, app);
-        AddRepoProgress::InsertReadme.send(100, 1, 1, app);
+        AddRepoProgress::Readme.send("github", user, repo, 100, 2, 2, app);
     }
+
+    add_github_repo_owner_user(user, repo, api, pool, app).await?;
 
     Ok(())
 }
 
+#[derive(FromRow)]
+struct GitHubRepoPreview {
+    id: i64,
+    description: String,
+    stargazers_count: i32,
+    forks: i32,
+    open_issues: i32,
+    visibility: String,
+}
+
+#[derive(FromRow)]
+pub struct DbRepoPreviewOwner {
+    id: i64,
+    login: String,
+}
+
+pub async fn get_github_repo_preview(
+    repo_id: i64,
+    pool: &SqlitePool,
+) -> AppResult<(DbPlatformRepo, RepoPreviewOwner)> {
+    let start = Instant::now();
+
+    let query = "SELECT id, description, stargazers_count, forks, open_issues, visibility FROM github_repo WHERE repo_id = ?";
+    let github_repo = sqlx::query_as::<_, GitHubRepoPreview>(query)
+        .bind(repo_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting GitHub repository from database"
+        })?;
+
+    let owner_query = "SELECT id, login FROM github_repo_owner WHERE github_repo_id = ?";
+    let owner = sqlx::query_as::<_, DbRepoPreviewOwner>(owner_query)
+        .bind(github_repo.id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting GitHub repository owner from database"
+        })?;
+
+    let user_id_query = "SELECT user_id FROM github_user WHERE id = ?";
+    let user_id = sqlx::query_scalar::<_, i64>(user_id_query)
+        .bind(owner.id)
+        .fetch_one(pool)
+        .await?;
+
+    let avatar_id_query = "SELECT id FROM user_avatar WHERE user_id = ?";
+    let avatar_id = sqlx::query_scalar::<_, i64>(avatar_id_query)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting user avatar id from database"
+        })?;
+
+    let dir = get_data_dir().join("assets/avatars");
+    let path = dir.join(avatar_id.to_string());
+    let avatar = path.to_str().unwrap().to_string();
+
+    info!(
+        "got github repo preview from database in {:?}",
+        start.elapsed()
+    );
+
+    Ok((
+        DbPlatformRepo {
+            description: github_repo.description,
+            stars: github_repo.stargazers_count,
+            forks: github_repo.forks,
+            issues: github_repo.open_issues,
+            pull_requests: 0,
+            visibility: github_repo.visibility,
+        },
+        RepoPreviewOwner {
+            id: user_id,
+            user: owner.login,
+            avatar,
+        },
+    ))
+}
+
 pub async fn get_github_repo(repo_id: i64, pool: &SqlitePool) -> AppResult<GitHubRepoData> {
-    let query = "SELECT * FROM github_repo WHERE repo = ?";
+    let query = "SELECT * FROM github_repo WHERE repo_id = ?";
     let github_repo = sqlx::query_as::<_, GitHubRepo>(query)
         .bind(repo_id)
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github repository from database"
+        })?;
 
     let owner_query = "SELECT * FROM github_repo_owner WHERE github_repo_id = ?";
     let owner = sqlx::query_as::<_, GitHubRepoOwner>(owner_query)
         .bind(github_repo.id)
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github owner from database"
+        })?;
 
     let org_query = "SELECT * FROM github_repo_org WHERE github_repo_id = ?";
     let org = sqlx::query_as::<_, GitHubRepoOrg>(org_query)
         .bind(github_repo.id)
         .fetch_optional(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github organization from database"
+        })?;
 
     let topics_query = "SELECT topic FROM github_repo_topic WHERE github_repo_id = ?";
     let topics = sqlx::query_scalar::<_, String>(topics_query)
         .bind(github_repo.id)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github topics from database"
+        })?;
 
     let license_query = "SELECT * FROM github_repo_license WHERE github_repo_id = ?";
     let license = sqlx::query_as::<_, GitHubRepoLicense>(license_query)
         .bind(github_repo.id)
         .fetch_one(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github license from database"
+        })?;
 
     let custom_properties_query =
         "SELECT * FROM github_repo_custom_property WHERE github_repo_id = ?";
     let custom_properties = sqlx::query_as::<_, GitHubRepoCustomProperty>(custom_properties_query)
         .bind(github_repo.id)
         .fetch_all(pool)
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github custom properties from database"
+        })?;
 
     Ok(GitHubRepoData {
         repo: github_repo,
@@ -413,4 +654,18 @@ pub async fn get_github_repo(repo_id: i64, pool: &SqlitePool) -> AppResult<GitHu
         license,
         custom_properties,
     })
+}
+
+pub async fn get_github_user(user_id: i64, pool: &SqlitePool) -> AppResult<GitHubUserData> {
+    let query = "SELECT * FROM github_user WHERE user_id = ?";
+    let github_user = sqlx::query_as::<_, GitHubUser>(query)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            error!("{:?}", e);
+            "Error getting github user from database"
+        })?;
+
+    Ok(GitHubUserData { user: github_user })
 }

@@ -239,12 +239,21 @@ const config: Config = {
             opacity: "1",
           },
         },
+        loader2: {
+          from: {
+            transform: "rotate(0deg)",
+          },
+          to: {
+            transform: "rotate(360deg)",
+          },
+        },
       },
       animation: {
         fadein: "fadein .3s ease",
         shake: "shake .4s ease",
         modalbounce: "modalbounce .3s ease",
         loader: "loader 1.5s ease infinite",
+        loader2: "loader2 2s ease infinite",
       },
       listStyleType: { square: "square", roman: "upper-roman" },
     },

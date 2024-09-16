@@ -10,6 +10,7 @@ export interface ButtonProps
   readonly size?: "sm" | "md" | "lg";
   readonly variant?:
     | "primary"
+    | "primary-outline"
     | "secondary"
     | "secondary2"
     | "menu"
@@ -17,7 +18,9 @@ export interface ButtonProps
     | "danger"
     | "danger-outline"
     | "warning"
-    | "success";
+    | "warning-outline"
+    | "success"
+    | "success-outline";
   readonly width?: "auto" | "full";
   readonly link?: boolean;
   readonly href?: string;
@@ -40,6 +43,8 @@ const Button = ({
   const variantStyle = {
     primary:
       "bg-primary hover:bg-primary-hover active:bg-primary-active text-primary-fg border border-transparent",
+    "primary-outline":
+      "bg-bg text-fg hover:text-fg active:text-fg border border-primary hover:border-transparent active:border-transparent hover:bg-primary active:bg-primary-active",
 
     secondary:
       "bg-secondary hover:bg-secondary-hover active:bg-secondary-active text-secondary-fg border border-transparent",
@@ -53,13 +58,17 @@ const Button = ({
     danger:
       "bg-danger hover:bg-danger-hover active:bg-danger-active text-danger-fg border border-transparent",
     "danger-outline":
-      "bg-bg text-fg-secondary hover:text-fg active:text-fg border border-danger-active hover:border-transparent active:border-transparent hover:bg-danger active:bg-danger-active text-danger-fg",
+      "bg-bg text-fg hover:text-fg active:text-fg border border-danger-active hover:border-transparent active:border-transparent hover:bg-danger active:bg-danger-active",
 
     warning:
       "bg-warning hover:bg-warning-hover active:bg-warning-active text-warning-fg border border-transparent",
+    "warning-outline":
+      "bg-bg text-fg hover:text-fg active:text-fg border border-warning-active hover:border-transparent active:border-transparent hover:bg-warning active:bg-warning-active",
 
     success:
       "bg-success hover:bg-success-hover active:bg-success-active text-success-fg border border-transparent",
+    "success-outline":
+      "bg-bg text-fg hover:text-fg active:text-fg border border-success hover:border-transparent active:border-transparent hover:bg-success active:bg-success-active",
   };
 
   return href ? (

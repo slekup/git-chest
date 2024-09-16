@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tokio::fs;
 use tracing::info;
@@ -21,7 +21,7 @@ pub fn get_cache_dir() -> PathBuf {
 }
 
 /// Ensure that a directory and all parent directories are created.
-pub async fn ensure_dir(dir: &PathBuf) -> AppResult<()> {
+pub async fn ensure_dir(dir: &Path) -> AppResult<()> {
     if !fs::try_exists(dir).await? {
         let dir_str = dir.to_str().unwrap();
         info!("Creating non-existent directory: {:?}", dir_str);

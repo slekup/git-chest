@@ -34,6 +34,7 @@ tokio = { version = "1.29.1", features = ["full"] }
 sqlx = { version = "0.8.0", features = ["sqlite", "runtime-tokio-native-tls"] }
 reqwest = { version = "0.12.7", features = ["json"] }
 tracing-error = "0.2.0"
+regex = "1.10.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

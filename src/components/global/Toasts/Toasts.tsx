@@ -8,7 +8,7 @@ const Toasts = () => {
 
   return (
     <>
-      <div className="fixed top-4 right-4 h-full z-40">
+      <div className="fixed top-4 right-4 h-full z-40 no-select">
         {toasts.map((toast) => (
           <Toast toast={toast} key={toast.id} />
         ))}
