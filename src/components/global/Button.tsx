@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import Link, { LinkProps } from "next/link";
 import React from "react";
+import { IconType } from "react-icons";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -24,6 +25,8 @@ export interface ButtonProps
   readonly width?: "auto" | "full";
   readonly link?: boolean;
   readonly href?: string;
+  readonly target?: string;
+  readonly icon?: IconType;
 }
 
 const Button = ({
@@ -32,12 +35,19 @@ const Button = ({
   variant = "primary",
   width = "auto",
   href,
+  icon: Icon,
   ...props
 }: ButtonProps): JSX.Element => {
   const sizeStyle = {
     sm: "px-3 py-1.5 text-xs font-semibold",
     md: "px-5 py-2.5 text-sm font-medium",
     lg: "px-6 py-3.5 text-lg font-medium",
+  };
+
+  const iconSizeStyle = {
+    sm: "h-4 w-4",
+    md: "h-5 w-5",
+    lg: "h-6 w-6",
   };
 
   const variantStyle = {
@@ -73,15 +83,19 @@ const Button = ({
 
   return href ? (
     <Link
+      {...(props as LinkProps)}
       className={clsx(
-        "rounded-md",
+        "inline-block rounded-md text-center",
         sizeStyle[size],
         variantStyle[variant],
-        width === "full" && "w-full",
+        width === "full" ? "w-full" : "",
         props.className,
       )}
-      {...(props as LinkProps)}
+      href={href}
     >
+      {Icon && (
+        <Icon className={clsx("inline -mt-0.5 mr-1.5", iconSizeStyle[size])} />
+      )}
       {label}
     </Link>
   ) : (
@@ -89,13 +103,16 @@ const Button = ({
       type="button"
       {...props}
       className={clsx(
-        "rounded-md",
+        "inline-block rounded-md text-center",
         sizeStyle[size],
         variantStyle[variant],
         width === "full" ? "w-full" : "",
         props.className,
       )}
     >
+      {Icon && (
+        <Icon className={clsx("inline -mt-0.5 mr-1.5", iconSizeStyle[size])} />
+      )}
       {label}
     </button>
   );

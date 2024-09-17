@@ -149,6 +149,7 @@ impl GitHubAPI {
 
         if let Err(error) = res.error_for_status_ref() {
             error!("{:?}", res.text().await?);
+            error!("{:?}", error);
             return AppError::new(&error.to_string());
         }
 

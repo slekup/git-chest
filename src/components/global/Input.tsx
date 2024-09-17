@@ -8,7 +8,7 @@ interface Props extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: FieldError;
 }
 
-const Input = (props: Props, _: Ref<HTMLInputElement>) => {
+const Input = (props: Props, ref: Ref<HTMLInputElement>) => {
   return (
     <>
       <input
@@ -22,7 +22,7 @@ const Input = (props: Props, _: Ref<HTMLInputElement>) => {
             : "border-border hover:border-border-hover focus:border-border-focus",
           props.className || "",
         )}
-        ref={_}
+        ref={ref}
       ></input>
       {props.error && (
         <span className="block mt-1 text-sm text-danger">

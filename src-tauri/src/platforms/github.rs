@@ -462,8 +462,9 @@ pub async fn add_github_repo(
     AddRepoProgress::Readme.send("github", user, repo, 0, 0, 1, app);
     let filename = sqlx::query_scalar::<_, String>(
         "SELECT path
-         FROM repo_tree_item
-         WHERE path LIKE '%README%' OR path LIKE '%README.md%'",
+        FROM repo_tree_item
+        WHERE parent_id IS NULL
+        AND (LOWER(path) LIKE '%readme%' OR LOWER(path) LIKE '%readme.md%')",
     )
     .fetch_optional(pool)
     .await

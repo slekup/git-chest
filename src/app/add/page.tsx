@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import Image from "next/image";
@@ -38,6 +38,7 @@ import {
 import { Platform } from "@typings/platform";
 import { MdOutlineHourglassEmpty } from "react-icons/md";
 import { RiLoaderFill } from "react-icons/ri";
+import { platformDomain, platformName } from "@utils/platform";
 
 /* interface Directory {
   id: number;
@@ -117,16 +118,6 @@ const repoProgressTaskIds = [
   "owner",
 ];
 
-const platformName = (key: string) => {
-  const names: { [key: string]: any } = {
-    [Platform.Bitbucket]: "Bitbucket",
-    [Platform.GitHub]: "GitHub",
-    [Platform.GitLab]: "GitLab",
-    [Platform.Gitea]: "Gitea",
-  };
-  return names[key];
-};
-
 export default function Add() {
   // const [directoryName, setDirectoryName] = useState<string | undefined>();
   // const [directories, setDirectories] = useState<Directory[] | undefined>();
@@ -134,6 +125,8 @@ export default function Add() {
   const [fromURL, setFromURL] = useState<string>("");
   const [addingRepo, setAddingRepo] = useState<boolean>(false);
   const [repoTasks, setAddRepoProgress] = useState<AddRepoProgress[]>([]);
+
+  const fillFromURLInput = useRef<HTMLInputElement>(null);
 
   const dispatch = useDispatch();
   const router = useRouter();
@@ -231,25 +224,25 @@ export default function Add() {
       return fillFail("Protocol not currently supported.");
     if (value.startsWith("https://")) value = value.replace("https://", "");
 
-    const platforms: [string, Platform][] = [
-      ["bitbucket.com", Platform.Bitbucket],
-      ["github.com", Platform.GitHub],
-      ["gitlab.com", Platform.GitLab],
-      ["gitea.com", Platform.Gitea],
+    const platforms: Platform[] = [
+      Platform.Bitbucket,
+      Platform.GitHub,
+      Platform.GitLab,
+      Platform.Gitea,
     ];
-    const platform = platforms.find((p) => value.startsWith(p[0]));
+    const platform = platforms.find((p) => value.startsWith(platformDomain(p)));
     if (!platform)
       return fillFail("Unsupported platform or incorrect domain name.");
-    value = value.replace(platform[0] + "/", "");
+    value = value.replace(platformDomain(platform) + "/", "");
     if (value.endsWith("/")) value = value.slice(0, -1);
 
     let split_value = value.split("/");
     if (split_value.length < 2) return fillFail("User or repo not provided.");
     let [user, repo] = split_value;
 
-    setValue("platform", platform[1]);
+    setValue("platform", platform);
     setValue("user", user);
-    setValue("repo", repo);
+    setValue("repo", repo.split("?")[0]);
     setShowUrlInput(false);
   };
 
@@ -420,7 +413,10 @@ export default function Add() {
               label="Fill from URL"
               size="sm"
               variant="secondary"
-              onClick={() => setShowUrlInput(true)}
+              onClick={() => {
+                setShowUrlInput(true);
+                setTimeout(() => fillFromURLInput.current?.focus(), 100);
+              }}
             />
           </div>
 
@@ -686,6 +682,7 @@ export default function Add() {
         <div className="p-5">
           <Label text="URL" />
           <Input
+            ref={fillFromURLInput}
             placeholder="https://github.com/octocat/Hello-World"
             className="mt-2"
             value={fromURL}

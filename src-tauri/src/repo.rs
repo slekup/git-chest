@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use regex::Regex;
 use serde::Serialize;
 use sqlx::{prelude::FromRow, SqlitePool};
@@ -99,6 +101,7 @@ pub async fn download_readme_assets(
             .last_insert_rowid();
 
         let path = dir.join(&format!("{}{}", id, ext_str));
+        let path_str = path.to_str().unwrap();
         let mut file = fs::File::create(&path).await.map_err(|e| {
             error!("{:?}", e);
             "Error creating local README asset file"
@@ -110,13 +113,18 @@ pub async fn download_readme_assets(
                 let alt = image.alt.unwrap_or("".to_string());
                 new_text = new_text.replace(
                     &format!("[{}]({})", alt, image.url),
-                    &format!("[{}]({})", alt, path.to_str().unwrap()),
+                    &format!("[{}]({})", alt, path_str),
                 );
+            }
+            ReadmeImageKind::MarkdownVar(var) => {
+                let old = format!("[{}]: {}", var, image.url);
+                let new = format!("[{}]: {}", var, path_str);
+                new_text = new_text.replace(&old, &new);
             }
             ReadmeImageKind::Html => {
                 new_text = new_text.replace(
                     &format!("src=\"{}\"", image.url),
-                    &format!("src=\"{}\"", path.to_str().unwrap()),
+                    &format!("src=\"{}\"", path_str),
                 );
             }
         }
@@ -140,6 +148,7 @@ pub async fn download_readme_assets(
 
 enum ReadmeImageKind {
     Markdown,
+    MarkdownVar(String),
     Html,
 }
 
@@ -153,9 +162,6 @@ fn parse_images(text: &str) -> Vec<ParsedReadmeImage> {
     let mut images = Vec::new();
 
     let markdown_re = Regex::new(r"!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]+)\)").unwrap();
-    let html_re =
-        Regex::new(r#"<img\s+[^>]*src="(?P<src>[^"]+)"[^>]*\balt="(?P<alt>[^"]*)""#).unwrap();
-
     for cap in markdown_re.captures_iter(text) {
         let alt = &cap["alt"];
         let optional_alt = if alt.is_empty() {
@@ -164,6 +170,12 @@ fn parse_images(text: &str) -> Vec<ParsedReadmeImage> {
             Some(alt.to_string())
         };
         let src = &cap["src"];
+
+        if !src.starts_with("https://") {
+            // The following two for loops account for images with variable links.
+            continue;
+        }
+
         images.push(ParsedReadmeImage {
             url: src.to_string(),
             alt: optional_alt,
@@ -171,6 +183,34 @@ fn parse_images(text: &str) -> Vec<ParsedReadmeImage> {
         });
     }
 
+    let image_re = Regex::new(r"\[!\[(.*?)\]\[(.*?)\]\]").unwrap();
+    let link_re = Regex::new(r"\[(.*?)\]:\s*(\S+)").unwrap();
+    let mut image_vars: HashMap<String, Option<String>> = HashMap::new();
+    for cap in image_re.captures_iter(text) {
+        let alt = cap[1].to_string();
+        let optional_alt = if alt.is_empty() {
+            None
+        } else {
+            Some(alt.to_string())
+        };
+        let url = cap[2].to_string();
+        image_vars.insert(url, optional_alt);
+    }
+    for cap in link_re.captures_iter(text) {
+        let var = &cap[1];
+        let src = &cap[2];
+
+        if let Some(alt) = image_vars.get(var) {
+            images.push(ParsedReadmeImage {
+                url: src.to_string(),
+                alt: alt.to_owned(),
+                kind: ReadmeImageKind::MarkdownVar(var.to_string()),
+            })
+        }
+    }
+
+    let html_re =
+        Regex::new(r#"<img\s+[^>]*src="(?P<src>[^"]+)"[^>]*\balt="(?P<alt>[^"]*)""#).unwrap();
     for cap in html_re.captures_iter(text) {
         let alt = &cap["alt"];
         let optional_alt = if alt.is_empty() {

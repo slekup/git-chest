@@ -4,11 +4,15 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
 import { useDispatch } from "react-redux";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeHighlight from "rehype-highlight";
+import rehypeSlug from "rehype-slug";
+import hljs from "highlight.js";
 
 import { IconType } from "react-icons";
 import {
@@ -27,18 +31,20 @@ import {
   GoPlay,
   GoProject,
   GoPulse,
-  GoRepo,
   GoRepoForked,
   GoShield,
   GoStar,
 } from "react-icons/go";
+import { HiOutlineExternalLink } from "react-icons/hi";
 
 import { Button } from "@components/index";
 import { Platform } from "@typings/platform";
 import { addToast } from "@slices/toasts.slice";
 import { ToastType } from "@typings/core";
+import { platformDomain, platformName } from "@utils/platform";
 
 import "@styles/markdown.css";
+import "highlight.js/styles/github-dark.css";
 
 interface Repo {
   id: number;
@@ -160,6 +166,16 @@ export default function Page() {
   const id = params.get("id");
   const tree_id = params.get("tree_id");
 
+  const updateCodeSyntaxHighlighting = () => {
+    hljs.configure({ ignoreUnescapedHTML: true });
+    hljs.highlightAll();
+  };
+
+  useEffect(() => {
+    const fn = () => updateCodeSyntaxHighlighting();
+    return () => fn();
+  }, []);
+
   useEffect(() => {
     setError(undefined);
 
@@ -219,7 +235,13 @@ export default function Page() {
           <div className="px-10 border-b border-border bg-bg-secondary">
             <div className="pt-5 flex justify-between">
               <div className="flex">
-                <GoRepo className="h-5 w-5 text-fg-tertiary mt-2" />
+                <Image
+                  src={`/${fullRepo.repo.platform}.svg`}
+                  width={25}
+                  height={25}
+                  alt={`${fullRepo.repo.platform} logo`}
+                  className="mt-0.5 rounded-lg"
+                />
                 <span className="flex text-2xl ml-2">
                   <Link
                     href={`/user?username${fullRepo.repo.user}`}
@@ -228,9 +250,12 @@ export default function Page() {
                     {fullRepo.repo.user}
                   </Link>
                   <span className="text-fg-tertiary mx-1 font-semibold">/</span>
-                  <span className="text-link hover:underline font-semibold">
+                  <Link
+                    href={`/repo?id=${id}`}
+                    className="text-link hover:underline font-semibold"
+                  >
                     {fullRepo.repo.repo}
-                  </span>
+                  </Link>
                 </span>
                 <span className="ml-5 text-sm py-1.5 px-3 rounded-full bg-bg-tertiary text-fg-secondary font-medium border border-border capitalize">
                   {fullRepo.platform_repo.data.repo.visibility}
@@ -274,7 +299,7 @@ export default function Page() {
           </div>
 
           <div className="max-w-7xl mx-auto flex mt-5">
-            <div className="w-full">
+            <div className="w-full max-w-5xl">
               <div className="flex justify-between">
                 <div className="flex"></div>
                 <div className="flex">
@@ -302,7 +327,7 @@ export default function Page() {
                       <GoFile className="mt-05 h-5 w-5 text-fg-tertiary" />
                     )}
                     <Link
-                      href={`/repo/tree_id=${item.id}`}
+                      href={`/repo?id=${id}&tree_id=${item.id}`}
                       className="ml-2 hover:text-link hover:underline"
                     >
                       {item.path}
@@ -342,19 +367,31 @@ export default function Page() {
                     ))}
                   </div>
                   {fullRepo.readme && (
-                    <div className="markdown p-5">
+                    <div className="markdown p-5 yes-select cursor-auto">
                       <Markdown
                         remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw]}
+                        rehypePlugins={[rehypeRaw, rehypeSlug, rehypeHighlight]}
                         components={{
                           img(props) {
-                            const { src, ...rest } = props;
+                            const { src, alt } = props;
                             return (
-                              <img
-                                {...rest}
+                              <Image
                                 src={convertFileSrc(src as string)}
-                                alt=""
+                                alt={alt ?? ""}
+                                width={0}
+                                height={0}
+                                className="inline w-auto h-auto object-contain"
                               />
+                            );
+                          },
+                          a(props) {
+                            const { href, children } = props;
+                            return href?.startsWith("https://") ? (
+                              <a target="_blank" {...props}>
+                                {children}
+                              </a>
+                            ) : (
+                              <a {...props}>{children}</a>
                             );
                           },
                         }}
@@ -450,6 +487,16 @@ export default function Page() {
                   width="full"
                   className="mt-3"
                   onClick={() => removeRepo()}
+                />
+                <Button
+                  href={`https://${platformDomain(fullRepo.repo.platform)}/${fullRepo.repo.user}/${fullRepo.repo.repo}`}
+                  target="_blank"
+                  variant="secondary"
+                  label={`Open on ${platformName(fullRepo.repo.platform)}`}
+                  size="sm"
+                  width="full"
+                  className="mt-3"
+                  icon={HiOutlineExternalLink}
                 />
               </div>
             </div>
